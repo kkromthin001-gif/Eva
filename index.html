@@ -1,0 +1,2014 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบประเมินและวิเคราะห์ผลการสอนของครูโดยนักเรียน</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8fafc;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Mandatory Required Placeholder Comments -->
+    <!-- Chosen Palette: Indigo-Navy Slate with Amber & Emerald Highlights -->
+    <!-- Application Structure Plan:
+        1. Default Landing State: Direct Student View landing via default logic or URL hash (#form).
+        2. Subject Categorization: Full curriculum subjects categorized strictly into Semester 1 (ภาคเรียนที่ 1) and Semester 2 (ภาคเรียนที่ 2) across 11 departments and grade levels (ม.ต้น / ม.ปลาย).
+        3. Dynamic Form Cascading Options: Department -> Teacher -> Semester -> Grade Level -> Subject dropdowns update dynamically based on curriculum database.
+        4. PIN Authentication Modal: Admin mode toggle unlocked via PIN without displaying the code on UI for improved system security.
+        5. One-Click Share Button: Added dynamic link copy tool for easy sharing to students.
+        6. Executive Analytics Dashboard & Individual Teacher Analytics: Real-time dynamic processing with Chart.js charts and automated textual summaries.
+        7. Interactive Curriculum & Criteria Reference: Tab showing subject listings per semester along with 20 evaluation criteria.
+    -->
+    <!-- Visualization & Content Choices:
+        - Dynamic Semester & Subject Cascade -> Dynamic JS dropdown linking Semester 1 and Semester 2 to curriculum document.
+        - Chart.js Radar Chart -> Visualizes performance across 4 evaluation domains.
+        - Chart.js Donut Chart -> Likert satisfaction level breakdown.
+        - Chart.js Horizontal & Vertical Bar Charts -> Itemized 20 questions breakdown per teacher.
+        - NO SVG or Mermaid JS graphics used. Standard HTML Canvas and Tailwind CSS elements.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <!-- Header & Navigation Bar -->
+    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center py-3 gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-xl text-amber-300 border border-indigo-400">
+                        🎓
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg md:text-xl font-bold tracking-tight">ระบบประเมินการสอนของครูโดยนักเรียน</h1>
+                            <span id="role-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-200 text-indigo-900 border border-indigo-400">โหมดนักเรียน</span>
+                        </div>
+                        <p class="text-xs text-indigo-200">โรงเรียนพานทองสภาชนูปถัมภ์ | โครงสร้างหลักสูตรแยกภาคเรียนที่ 1 และ ภาคเรียนที่ 2</p>
+                    </div>
+                </div>
+
+                <!-- Mode Control & Share Buttons -->
+                <div class="flex items-center gap-2 flex-wrap justify-center">
+                    <button id="btn-toggle-student-mode" onclick="handleModeSwitchClick()" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-400 hover:bg-amber-300 text-indigo-950 shadow flex items-center gap-1.5">
+                        <span id="toggle-mode-icon">🔓</span> <span id="toggle-mode-text">เข้าสู่โหมดผู้บริหาร (กรอก PIN)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs (Hidden in Student Mode) -->
+            <div id="nav-tabs-container" class="py-2 border-t border-indigo-800/60 flex justify-center hidden">
+                <nav class="flex flex-wrap justify-center gap-1.5 bg-indigo-950/60 p-1.5 rounded-xl border border-indigo-800">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="nav-btn px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/50">
+                        📊 ภาพรวมโรงเรียน
+                    </button>
+                    <button onclick="switchTab('analytics')" id="tab-analytics" class="nav-btn px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/50">
+                        🔍 วิเคราะห์รายบุคคล (ครูผู้สอน)
+                    </button>
+                    <button onclick="switchTab('form')" id="tab-form" class="nav-btn px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors bg-indigo-600 text-white shadow">
+                        📝 ทำแบบประเมินออนไลน์
+                    </button>
+                    <button onclick="switchTab('criteria')" id="tab-criteria" class="nav-btn px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/50">
+                        📚 รายวิชาแยกภาคเรียน & เกณฑ์ประเมิน
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Student Restricted Banner (Visible only in Student Mode) -->
+    <div id="student-mode-banner" class="bg-indigo-700 text-white py-2 px-4 text-center text-xs font-medium shadow-inner flex justify-center items-center gap-2">
+        <span>📌 ขณะนี้อยู่ใน <strong>"โหมดนักเรียน"</strong> (ระบบแสดงหน้าแบบประเมินทันทีเมื่อเปิดลิงก์ ผลประเมินจะถูกเก็บเป็นความลับ)</span>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- SECTION 1: ONLINE EVALUATION FORM (DEFAULT LANDING VIEW) -->
+        <section id="sec-form" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <div class="flex items-center space-x-3 mb-2">
+                    <span class="px-3 py-1 bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-full">สำหรับนักเรียนทำแบบประเมิน</span>
+                    <h2 class="text-2xl font-bold text-slate-900">แบบประเมินการสอนของครูโดยนักเรียน</h2>
+                </div>
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    ให้นักเรียนเลือกกลุ่มสาระฯ ครูผู้สอน ภาคเรียน และรายวิชาตามโครงสร้างหลักสูตรสถานศึกษา เพื่อประเมินการสอนของคุณครูตามความเป็นจริง
+                </p>
+                <div class="mt-3 text-xs text-rose-600 font-medium flex items-center gap-1">
+                    <span>🔒</span> ข้อมูลการตอบแบบประเมินจะถูกเก็บเป็นความลับและไม่ส่งผลต่อระดับคะแนนหรือผลการเรียนของนักเรียน
+                </div>
+            </div>
+
+            <form id="evaluation-form" onsubmit="handleFormSubmit(event)" class="space-y-6">
+                
+                <!-- Part 1: General Info & Dynamic Subjects per Semester -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="text-lg font-bold text-indigo-900 border-b pb-2 flex items-center justify-between">
+                        <span>ส่วนที่ 1: ข้อมูลทั่วไปและวิชาที่ประเมิน</span>
+                        <span class="text-xs font-normal text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">โครงสร้างหลักสูตร ปี 2568</span>
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">กลุ่มสาระการเรียนรู้ / กลุ่มงาน <span class="text-rose-500">*</span></label>
+                            <select id="form-dept-select" onchange="onFormDeptOrSemesterChange()" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                                <option value="">-- เลือกกลุ่มสาระการเรียนรู้ --</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">ชื่อคุณครูผู้สอน <span class="text-rose-500">*</span></label>
+                            <select id="form-teacher-select" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                                <option value="">-- โปรดเลือกกลุ่มสาระฯ ก่อน --</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-1">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">ภาคเรียน <span class="text-rose-500">*</span></label>
+                                <select id="form-semester-select" onchange="onFormDeptOrSemesterChange()" required class="w-full p-2.5 bg-indigo-50/70 border border-indigo-200 text-indigo-950 font-semibold rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                                    <option value="ภาคเรียนที่ 1">ภาคเรียนที่ 1</option>
+                                    <option value="ภาคเรียนที่ 2">ภาคเรียนที่ 2</option>
+                                </select>
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">รายวิชาที่สอน (ม.1 - ม.6) <span class="text-rose-500">*</span></label>
+                                <select id="form-subject-select" required class="w-full p-2.5 bg-amber-50/60 border border-amber-300 text-amber-950 font-medium rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all">
+                                    <option value="">-- เลือกกลุ่มสาระฯ และภาคเรียน เพื่อโหลดรายวิชา --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">รายวิชาเพิ่มเติม / หมายเหตุวิชา (ถ้ามี)</label>
+                            <input type="text" id="form-sub-extra" placeholder="ระบุชื่อวิชาเพิ่มเติม เช่น หุ่นยนต์ AI, การประกอบการดิจิทัล, โครงงาน ฯลฯ" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Part 2: 20 Items Evaluation Grid -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                    <div class="flex justify-between items-center border-b pb-3 flex-wrap gap-2">
+                        <div>
+                            <h3 class="text-lg font-bold text-indigo-900">ส่วนที่ 2: รายการประเมินการสอน (20 ข้อ)</h3>
+                            <p class="text-xs text-slate-500">เกณฑ์การประเมิน 5 ระดับ: (5) มากที่สุด | (4) มาก | (3) ปานกลาง | (2) น้อย | (1) ควรปรับปรุง</p>
+                        </div>
+                    </div>
+
+                    <!-- Domain 1 -->
+                    <div class="space-y-3">
+                        <h4 class="font-bold text-indigo-900 bg-indigo-50 p-2.5 rounded-lg text-sm">ด้านที่ 1: การเตรียมการสอน สื่อ และเนื้อหาวิชา (ข้อ 1 - 5)</h4>
+                        <div class="space-y-3 pl-1" id="domain-1-questions"></div>
+                    </div>
+
+                    <!-- Domain 2 -->
+                    <div class="space-y-3 pt-2">
+                        <h4 class="font-bold text-amber-900 bg-amber-50 p-2.5 rounded-lg text-sm">ด้านที่ 2: วิธีการสอน เทคนิค และบรรยากาศการเรียนรู้ (ข้อ 6 - 10)</h4>
+                        <div class="space-y-3 pl-1" id="domain-2-questions"></div>
+                    </div>
+
+                    <!-- Domain 3 -->
+                    <div class="space-y-3 pt-2">
+                        <h4 class="font-bold text-teal-900 bg-teal-50 p-2.5 rounded-lg text-sm">ด้านที่ 3: การดูแล การยอมรับ และการวัดประเมินผล (ข้อ 11 - 16)</h4>
+                        <div class="space-y-3 pl-1" id="domain-3-questions"></div>
+                    </div>
+
+                    <!-- Domain 4 -->
+                    <div class="space-y-3 pt-2">
+                        <h4 class="font-bold text-purple-900 bg-purple-50 p-2.5 rounded-lg text-sm">ด้านที่ 4: คุณธรรม จริยธรรม และบุคลิกภาพของครู (ข้อ 17 - 20)</h4>
+                        <div class="space-y-3 pl-1" id="domain-4-questions"></div>
+                    </div>
+                </div>
+
+                <!-- Part 3: Qualitative Feedback -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="text-lg font-bold text-indigo-900 border-b pb-2">ส่วนที่ 3: ข้อเสนอแนะเพิ่มเติม (ไม่บังคับตอบ)</h3>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">สิ่งที่นักเรียนประทับใจเกี่ยวกับการสอนของคุณครู</label>
+                        <textarea id="form-impress" rows="3" placeholder="ระบุสิ่งที่ชอบ วิธีการสอน เทคนิค ความประทับใจ..." class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">ข้อเสนอแนะเพื่อการปรับปรุงและพัฒนาการสอน</label>
+                        <textarea id="form-suggestions" rows="3" placeholder="ระบุข้อเสนอแนะ สิ่งที่อยากให้ครูปรับเปลี่ยน หรือกิจกรรมที่อยากให้เพิ่ม..." class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"></textarea>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end gap-4">
+                    <button type="reset" class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-100 transition-all text-sm">
+                        ล้างข้อมูล
+                    </button>
+                    <button type="submit" id="submit-btn" class="px-8 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md hover:shadow-lg transition-all text-sm flex items-center gap-2">
+                        <span id="submit-text">ส่งแบบประเมิน</span> <span id="submit-icon">🚀</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- SECTION 2: DASHBOARD (OVERVIEW - ADMIN ONLY) -->
+        <section id="sec-dashboard" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900 mb-1">สรุปภาพรวมผลการประเมินการสอนประจำปีการศึกษา</h2>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        ระบบสรุปผลการประเมินการสอนของคณะครู 104 ท่าน แยกตาม 11 กลุ่มสาระการเรียนรู้ และเปรียบเทียบระหว่างภาคเรียน
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-100 flex-wrap">
+                    <label class="text-xs font-semibold text-indigo-900">ตัวกรองภาคเรียน:</label>
+                    <select id="dashboard-semester-filter" onchange="updateDashboardView()" class="text-xs bg-white border border-indigo-300 font-bold text-indigo-950 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="ทั้งหมด">ภาคเรียนทั้งหมด (ทั้งปีการศึกษา)</option>
+                        <option value="ภาคเรียนที่ 1">เฉพาะ ภาคเรียนที่ 1</option>
+                        <option value="ภาคเรียนที่ 2">เฉพาะ ภาคเรียนที่ 2</option>
+                    </select>
+                    <button onclick="exportToCSV()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1.5">
+                        <span>📥</span> <span>ส่งออก Excel (CSV)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+                        ⭐
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">คะแนนเฉลี่ยรวมทุกด้าน</div>
+                        <div class="text-2xl font-extrabold text-indigo-900" id="kpi-total-avg">0.00 / 5.00</div>
+                        <div class="text-xs text-amber-600 font-medium" id="kpi-status-tag">สถานะ: ยังไม่มีข้อมูลการประเมิน</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl font-bold">
+                        👩‍🏫
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">จำนวนครูในระบบ</div>
+                        <div class="text-2xl font-extrabold text-teal-800">104 ท่าน</div>
+                        <div class="text-xs text-slate-500">รวม 11 กลุ่มสาระการเรียนรู้</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl font-bold">
+                        📋
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">ตัวชี้วัดการประเมิน</div>
+                        <div class="text-2xl font-extrabold text-amber-800">20 ข้อ</div>
+                        <div class="text-xs text-slate-500">แบ่งเป็น 4 ด้านมาตรฐาน</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl font-bold">
+                        👥
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">จำนวนแบบประเมินสะสม</div>
+                        <div class="text-2xl font-extrabold text-purple-900" id="kpi-total-evaluations">0</div>
+                        <div class="text-xs text-slate-500">ม.1 - ม.6 ทั้งหมด</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Visualizations Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Dimension Comparison Radar -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-slate-900">คะแนนเฉลี่ยภาพรวมโรงเรียน จำแนกตาม 4 ด้านหลัก</h3>
+                        <p class="text-xs text-slate-500">เปรียบเทียบคะแนนเฉลี่ยการประเมินในแต่ละมิติ</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-dimensions-radar"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rating Distribution Donut -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-slate-900">สัดส่วนระดับความพึงพอใจ ( Likert Scale )</h3>
+                        <p class="text-xs text-slate-500">สัดส่วนคำตอบจากระดับ 5 (มากที่สุด) ถึง 1 (ควรปรับปรุง)</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-rating-donut"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Highlights List -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-4">จุดเด่นสูงสุด และ ประเด็นที่ควรส่งเสริมพัฒนาเพิ่มเติมของภาพรวมโรงเรียน</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-emerald-50/60 rounded-xl p-4 border border-emerald-100">
+                        <h4 class="font-bold text-emerald-900 text-sm mb-3 flex items-center gap-2">
+                            <span>✨</span> 3 ข้อที่มีคะแนนเฉลี่ยสูงสุด (Strengths)
+                        </h4>
+                        <ol class="space-y-2 text-sm text-slate-700" id="top-strengths-list">
+                            <li class="bg-white p-3 rounded-lg border border-emerald-200/50 text-slate-400 text-center text-xs">
+                                รอนักเรียนทำแบบประเมินเพื่อคำนวณประมวลผล
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="bg-amber-50/60 rounded-xl p-4 border border-amber-100">
+                        <h4 class="font-bold text-amber-900 text-sm mb-3 flex items-center gap-2">
+                            <span>🎯</span> 3 ข้อที่ควรส่งเสริมพัฒนาเพิ่มเติม (Focus Areas)
+                        </h4>
+                        <ol class="space-y-2 text-sm text-slate-700" id="top-focus-list">
+                            <li class="bg-white p-3 rounded-lg border border-amber-200/50 text-slate-400 text-center text-xs">
+                                รอนักเรียนทำแบบประเมินเพื่อคำนวณประมวลผล
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: INDIVIDUAL TEACHER ANALYTICS & DRILL-DOWN (ADMIN ONLY) -->
+        <section id="sec-analytics" class="hidden space-y-6">
+            <!-- Filter Bar -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">วิเคราะห์ผลประเมินรายบุคคล (ครูผู้สอน)</h2>
+                        <p class="text-xs text-slate-500">เลือกกลุ่มสาระ ครูผู้สอน และภาคเรียน เพื่อเจาะลึกวิเคราะห์คะแนนและข้อเสนอแนะ</p>
+                    </div>
+                    <div class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 font-medium">
+                        ค้นหาจากครูทั้งหมด 104 ท่าน
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">1. กลุ่มสาระการเรียนรู้</label>
+                        <select id="analytics-dept-select" onchange="updateAnalyticsTeacherDropdown()" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">2. เลือกครูผู้สอน</label>
+                        <select id="analytics-teacher-select" onchange="renderTeacherAnalytics()" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">3. กรองตามภาคเรียน</label>
+                        <select id="analytics-semester-filter" onchange="renderTeacherAnalytics()" class="w-full p-2.5 bg-indigo-50/70 border border-indigo-200 rounded-lg text-sm font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500">
+                            <option value="ทั้งหมด">ภาคเรียนทั้งหมด (ทั้งปีการศึกษา)</option>
+                            <option value="ภาคเรียนที่ 1">เฉพาะ ภาคเรียนที่ 1</option>
+                            <option value="ภาคเรียนที่ 2">เฉพาะ ภาคเรียนที่ 2</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INDIVIDUAL EXECUTIVE SUMMARY CARD -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-5">
+                <div class="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 gap-4">
+                    <div>
+                        <span class="px-3 py-1 bg-indigo-100 text-indigo-800 font-bold text-xs rounded-full">สรุปผลประเมินรายบุคคล</span>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="teacher-summary-name">-- โปรดเลือกครูผู้สอน --</h3>
+                        <p class="text-xs text-slate-500 mt-0.5" id="teacher-summary-dept">สังกัดกลุ่มสาระการเรียนรู้</p>
+                    </div>
+                    <div class="flex items-center space-x-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <div class="text-right">
+                            <div class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">คะแนนเฉลี่ยภาพรวม</div>
+                            <div class="text-2xl font-black text-indigo-700" id="teacher-summary-score">0.00 / 5.00</div>
+                        </div>
+                        <div id="teacher-summary-badge" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 text-slate-600">
+                            ยังไม่มีข้อมูล
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Individual Highlight Metric Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <div class="text-xs text-slate-500 font-semibold mb-1">จำนวนการประเมิน</div>
+                        <div class="text-xl font-bold text-slate-800" id="teacher-metric-count">0 ครั้ง</div>
+                        <div class="text-[11px] text-slate-400 mt-1">การตอบแบบประเมินสะสม</div>
+                    </div>
+
+                    <div class="p-4 bg-emerald-50/70 rounded-xl border border-emerald-200">
+                        <div class="text-xs text-emerald-800 font-semibold mb-1">มิติโดดเด่นที่สุด</div>
+                        <div class="text-sm font-bold text-emerald-950 truncate" id="teacher-metric-best-domain">-</div>
+                        <div class="text-[11px] text-emerald-700 mt-1" id="teacher-metric-best-domain-score">คะแนนเฉลี่ย: -</div>
+                    </div>
+
+                    <div class="p-4 bg-indigo-50/70 rounded-xl border border-indigo-200">
+                        <div class="text-xs text-indigo-800 font-semibold mb-1">ข้อที่ได้คะแนนสูงสุด</div>
+                        <div class="text-xs font-bold text-indigo-950 line-clamp-2" id="teacher-metric-top-item">-</div>
+                        <div class="text-[11px] text-indigo-700 mt-1" id="teacher-metric-top-score">คะแนน: -</div>
+                    </div>
+
+                    <div class="p-4 bg-amber-50/70 rounded-xl border border-amber-200">
+                        <div class="text-xs text-amber-800 font-semibold mb-1">ประเด็นควรส่งเสริมพัฒนา</div>
+                        <div class="text-xs font-bold text-amber-950 line-clamp-2" id="teacher-metric-low-item">-</div>
+                        <div class="text-[11px] text-amber-700 mt-1" id="teacher-metric-low-score">คะแนน: -</div>
+                    </div>
+                </div>
+
+                <!-- AUTOMATED GRAPH & ANALYTICS TEXT SUMMARY -->
+                <div class="bg-gradient-to-r from-indigo-50 via-slate-50 to-amber-50/40 p-4 rounded-xl border border-indigo-100/80 space-y-2">
+                    <h4 class="font-bold text-indigo-950 text-sm flex items-center gap-2">
+                        <span>📊</span> บทสรุปวิเคราะห์ผลจากกราฟ (Automated Graph Analytics Summary)
+                    </h4>
+                    <p class="text-xs text-slate-700 leading-relaxed font-normal" id="teacher-graph-summary-text">
+                        โปรดเลือกครูผู้สอนด้านบน ระบบจะทำการประมวลผลข้อมูลคะแนนกราฟและสังเคราะห์เป็นบทสรุปเชิงวิเคราะห์ให้อัตโนมัติ...
+                    </p>
+                </div>
+            </div>
+
+            <!-- INDIVIDUAL GRAPH VISUALIZATIONS SECTION -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Individual Chart 1: Teacher vs School Radar Chart -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">1. กราฟเปรียบเทียบคะแนน 4 ด้านหลัก (ครูผู้สอน vs เฉลี่ยโรงเรียน)</h3>
+                        <p class="text-xs text-slate-500">เปรียบเทียบคะแนนเฉลี่ยของครูท่านนี้กับภาพรวมโรงเรียนในแต่ละมิติ</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-teacher-domain-radar"></canvas>
+                    </div>
+                </div>
+
+                <!-- Individual Chart 2: Domain Performance Bar Chart -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">2. กราฟสรุปคะแนนแท่งแยกตาม 4 มิติหลัก</h3>
+                        <p class="text-xs text-slate-500">คะแนนเฉลี่ยเรียงตามมิติการจัดการเรียนรู้ 1 ถึง 4</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-teacher-domain-bars"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Chart 3: Detailed 20 Items Score Breakdown -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex justify-between items-center flex-wrap gap-2">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900" id="analytics-teacher-title">3. กราฟรายละเอียดคะแนนเฉลี่ยทั้ง 20 รายการประเมิน</h3>
+                        <p class="text-xs text-slate-500" id="analytics-dept-title">แจกแจงคะแนนจากข้อ 1 ถึงข้อ 20</p>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 480px; max-height: 520px;">
+                    <canvas id="chart-itemized-bars"></canvas>
+                </div>
+            </div>
+
+            <!-- Qualitative Comments Feed -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 class="text-lg font-bold text-slate-900 border-b pb-2">ความคิดเห็นและข้อเสนอแนะสะท้อนกลับจากนักเรียน</h3>
+                <div id="comments-feed-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dynamic comments populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: CURRICULUM SUBJECT DIRECTORY BY SEMESTER & 20 CRITERIA -->
+        <section id="sec-criteria" class="hidden space-y-6">
+            
+            <!-- Dynamic Curriculum Subjects Directory by Semester 1 and Semester 2 -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col md:flex-row justify-between md:items-center gap-2 border-b pb-4">
+                    <div>
+                        <div class="px-3 py-1 bg-amber-100 text-amber-900 font-bold text-xs rounded-full inline-block mb-1">โครงสร้างหลักสูตรสถานศึกษา พ.ศ. 2568</div>
+                        <h2 class="text-2xl font-bold text-slate-900">คลังรายวิชาจำแนกตาม ภาคเรียนที่ 1 และ ภาคเรียนที่ 2</h2>
+                        <p class="text-slate-600 text-sm">ตรวจสอบรายชื่อวิชาเรียนทั้งหมดตามกลุ่มสาระการเรียนรู้ที่เปิดสอนในแต่ละภาคเรียน</p>
+                    </div>
+                    <!-- Semester Switch Controls -->
+                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                        <button onclick="filterCurriculumSemester('ภาคเรียนที่ 1')" id="btn-sem-1" class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all bg-indigo-600 text-white shadow">
+                            ภาคเรียนที่ 1
+                        </button>
+                        <button onclick="filterCurriculumSemester('ภาคเรียนที่ 2')" id="btn-sem-2" class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900">
+                            ภาคเรียนที่ 2
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Subject Grid Display -->
+                <div id="curriculum-subject-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Dynamic Javascript Content -->
+                </div>
+            </div>
+
+            <!-- 20 Criteria Reference -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900 mb-2">โครงสร้างรายการประเมินการสอน 20 ข้อ (4 ด้านมาตรฐาน)</h2>
+                <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                    เกณฑ์การประเมินการสอนของครูโดยนักเรียน ได้รับการออกแบบให้ครอบคลุมตามหลักวิชาชีพครูและการจัดกิจกรรมการเรียนรู้ที่ยึดผู้เรียนเป็นสำคัญ 
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Domain 1 Card -->
+                    <div class="bg-white rounded-2xl border border-indigo-100 p-5 shadow-sm space-y-3">
+                        <div class="flex items-center space-x-3 text-indigo-700 font-bold border-b pb-3 border-indigo-50">
+                            <span class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-sm">1</span>
+                            <h3 class="text-base">ด้านการเตรียมการสอน สื่อ และเนื้อหาวิชา (5 ข้อ)</h3>
+                        </div>
+                        <ul class="space-y-2 text-xs sm:text-sm text-slate-700">
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 1:</strong> ครูแจ้งผลการเรียนรู้ชัดเจน</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 2:</strong> เนื้อหาที่สอนทันสมัยเสมอ</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 3:</strong> ครูใช้สื่อประกอบการสอน</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 4:</strong> ครูประยุกต์สาระที่สอนเข้ากับเหตุการณ์ปัจจุบัน / สภาพแวดล้อม</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 5:</strong> ครูให้นักเรียนแสวงหาความรู้จากแหล่งเรียนรู้ต่างๆ</li>
+                        </ul>
+                    </div>
+
+                    <!-- Domain 2 Card -->
+                    <div class="bg-white rounded-2xl border border-amber-100 p-5 shadow-sm space-y-3">
+                        <div class="flex items-center space-x-3 text-amber-800 font-bold border-b pb-3 border-amber-50">
+                            <span class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">2</span>
+                            <h3 class="text-base">ด้านวิธีการสอน เทคนิค และบรรยากาศการเรียนรู้ (5 ข้อ)</h3>
+                        </div>
+                        <ul class="space-y-2 text-xs sm:text-sm text-slate-700">
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 6:</strong> กิจกรรมการเรียนรู้สนุกและน่าสนใจ</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 7:</strong> ครูใช้คำถามถามนักเรียนบ่อยๆ</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 8:</strong> ครูส่งเสริมให้นักเรียนคิดริเริ่มและรู้จักวิพากษ์วิจารณ์</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 9:</strong> ครูให้นักเรียนทำงานร่วมกันทั้งกลุ่มและรายบุคคล</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 10:</strong> ครูให้โอกาสนักเรียนซักถามปัญหา</li>
+                        </ul>
+                    </div>
+
+                    <!-- Domain 3 Card -->
+                    <div class="bg-white rounded-2xl border border-teal-100 p-5 shadow-sm space-y-3">
+                        <div class="flex items-center space-x-3 text-teal-800 font-bold border-b pb-3 border-teal-50">
+                            <span class="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-sm">3</span>
+                            <h3 class="text-base">ด้านการดูแล การยอมรับ และการวัดประเมินผล (6 ข้อ)</h3>
+                        </div>
+                        <ul class="space-y-2 text-xs sm:text-sm text-slate-700">
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 11:</strong> ครูยอมรับความคิดเห็นของนักเรียนที่ต่างไปจากครู</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 12:</strong> ครูให้ความสนใจนักเรียนขณะสอนทั่วถึงทุกคน</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 13:</strong> ครูให้ความช่วยเหลือหรืออำนวยความสะดวกแก่นักเรียนในการเรียน</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 14:</strong> นักเรียนทราบเกณฑ์การวัดและประเมินผล</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 15:</strong> นักเรียนมีส่วนร่วมในการวัดและประเมินผล</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 16:</strong> ครูประเมินผลการเรียนอย่างยุติธรรม</li>
+                        </ul>
+                    </div>
+
+                    <!-- Domain 4 Card -->
+                    <div class="bg-white rounded-2xl border border-purple-100 p-5 shadow-sm space-y-3">
+                        <div class="flex items-center space-x-3 text-purple-800 font-bold border-b pb-3 border-purple-50">
+                            <span class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">4</span>
+                            <h3 class="text-base">ด้านคุณธรรม จริยธรรม และบุคลิกภาพของครู (4 ข้อ)</h3>
+                        </div>
+                        <ul class="space-y-2 text-xs sm:text-sm text-slate-700">
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 17:</strong> ครูมีความตั้งใจในการสอน</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 18:</strong> บุคลิกภาพ การแต่งกายของครูเหมาะสม</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 19:</strong> การพูดจาของครูเหมาะสม</li>
+                            <li class="p-2.5 bg-slate-50 rounded-lg"><strong>ข้อ 20:</strong> ครูเข้าสอนและออกตรงตามเวลา</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ADMIN PIN LOGIN MODAL DIALOG -->
+    <div id="pin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold mb-2">
+                    🔐
+                </div>
+                <h3 class="text-lg font-bold text-slate-900">ยืนยันตัวตนผู้บริหาร</h3>
+                <p class="text-xs text-slate-500">กรอกรหัส PIN เพื่อปลดล็อกเข้าสู่โหมดผู้บริหาร</p>
+            </div>
+
+            <form onsubmit="handlePinSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1 text-center">รหัส PIN (4 หลัก)</label>
+                    <input type="password" id="pin-input" maxlength="4" placeholder="••••" required autofocus
+                        class="w-full text-center text-2xl font-bold tracking-[0.5em] py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all">
+                    <p id="pin-error-msg" class="text-xs text-rose-600 text-center mt-2 hidden font-medium">
+                        ⚠️ รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closePinModal()" class="w-1/2 py-2.5 rounded-xl border border-slate-300 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-all">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" class="w-1/2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition-all">
+                        ยืนยันปลดล็อก
+                    </button>
+                </div>
+            </form>
+            <div class="text-[11px] text-slate-400 text-center border-t pt-3">
+                🔒 สงวนสิทธิ์การเข้าถึงระบบเฉพาะผู้ได้รับอนุญาตเท่านั้น
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS MESSAGE MODAL -->
+    <div id="success-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl border border-emerald-100 max-w-sm w-full p-6 text-center transform scale-95 transition-transform duration-300" id="success-modal-content">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto font-bold mb-4 shadow-sm">
+                ✅
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">ส่งแบบประเมินสำเร็จ!</h3>
+            <p class="text-sm text-slate-600 mb-6 leading-relaxed" id="success-modal-msg">
+                บันทึกข้อมูลการประเมินการสอนเรียบร้อยแล้ว<br>ขอบคุณที่ร่วมให้ข้อมูลเพื่อการพัฒนาคุณภาพการเรียนรู้
+            </p>
+            <button onclick="closeSuccessModal()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md transition-all">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs text-center mt-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>© 2026 ระบบการจัดการและประเมินผลการเรียนรู้ | โรงเรียนพานทองสภาชนูปถัมภ์ รองรับรายชื่อครูผู้สอน 104 ท่าน 11 กลุ่มสาระการเรียนรู้</p>
+        </div>
+    </footer>
+
+    <!-- Application Logic Script -->
+    <script>
+        // System Access Mode State: Default to 'Student Mode' (isStudentMode = true)
+        let isStudentMode = true;
+        const ADMIN_PIN = "1234"; // Admin access PIN code
+        let activeCurriculumSemesterView = "ภาคเรียนที่ 1";
+
+        // 🌟 ใส่ URL ของ Google Apps Script (Web app) ที่ได้จากขั้นตอนด้านบน ตรงนี้ 🌟
+        // เช่น "https://script.google.com/macros/s/AKfycby.../exec"
+        const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwa3uLlpIWb7QI1Th4-Rr-wt1l6a5QLKsAJQB147OZmnK7BXEdgZsAToyJ35nHF5xSX/exec"; 
+
+        // Dynamic Store for Evaluation Records
+        let evaluationsStore = [];
+
+        // Comprehensive Subject Database Structured strictly into Semester 1 and Semester 2 from Grade M.1 to M.6
+        const curriculumSubjectDatabase = {
+            "กลุ่มสาระภาษาไทย": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["ภาษาไทย 1 (ท21101)"],
+                    "ม.2": ["ภาษาไทย 3 (ท22101)"],
+                    "ม.3": ["ภาษาไทย 5 (ท23101)"],
+                    "ม.4": ["ภาษาไทย 1 (ท31101)", "ภาษาไทยในยุคดิจิทัล (ท31201)", "ภาษาศาสตร์กับศิลปะการพูด (ท33201)"],
+                    "ม.5": ["ภาษาไทย 3 (ท32101)", "วิวัฒนาการของภาษาไทยในโซเชียลมีเดีย (ท32201)", "วรรณกรรมร่วมสมัยกับการเปลี่ยนแปลงทางภาษา (ท32202)"],
+                    "ม.6": ["ภาษาไทย 5 (ท33101)", "ภาษาศาสตร์กับศิลปะการพูด (ท33201)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["ภาษาไทย 2 (ท21102)"],
+                    "ม.2": ["ภาษาไทย 4 (ท22102)"],
+                    "ม.3": ["ภาษาไทย 6 (ท23102)"],
+                    "ม.4": ["ภาษาไทย 2 (ท31102)", "ภาษาศาสตร์ในวรรณคดี (ท31202)"],
+                    "ม.5": ["ภาษาไทย 4 (ท32102)", "วรรณกรรมร่วมสมัยกับการเปลี่ยนแปลงทางภาษา (ท32202)"],
+                    "ม.6": ["ภาษาไทย 6 (ท33102)", "ภาษาพูดกับบริบทสังคม (ท33202)"]
+                }
+            },
+            "กลุ่มสาระคณิตศาสตร์": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["คณิตศาสตร์ 1 (ค21101)", "จำนวนและการดำเนินการ (ค21201)"],
+                    "ม.2": ["คณิตศาสตร์ 3 (ค22101)", "คณิตศาสตร์กับร้อยละเปอร์เซ็นต์ (ค22201)"],
+                    "ม.3": ["คณิตศาสตร์ 5 (ค23101)", "คณิตศาสตร์เสริมทักษะคิดคำนวณ (ค23201)"],
+                    "ม.4": ["คณิตศาสตร์ 1 (ค31101)", "คณิตศาสตร์เพิ่มเติม 1 (ค31201)", "คณิตศาสตร์เพื่อการให้เหตุผล (ค31201)"],
+                    "ม.5": ["คณิตศาสตร์ 3 (ค32101)", "คณิตศาสตร์เพิ่มเติม 3 (ค32201)", "คณิตศาสตร์เพื่อวิศวกรรมพื้นฐาน (ค32201)"],
+                    "ม.6": ["คณิตศาสตร์ 5 (ค33101)", "คณิตศาสตร์เพิ่มเติม 5 (ค33201)", "แคลคูลัสเบื้องต้น (ค33201)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["คณิตศาสตร์ 2 (ค21102)", "คณิตศาสตร์และการประยุกต์ (ค21202)"],
+                    "ม.2": ["คณิตศาสตร์ 4 (ค22102)", "คณิตศาสตร์กับการแปรผัน (ค22202)"],
+                    "ม.3": ["คณิตศาสตร์ 6 (ค23102)", "คณิตศาสตร์คิดสร้างสรรค์ (ค23202)"],
+                    "ม.4": ["คณิตศาสตร์ 2 (ค31102)", "คณิตศาสตร์เพิ่มเติม 2 (ค31202)", "คณิตศาสตร์สำหรับคอมพิวเตอร์ (ค31202)"],
+                    "ม.5": ["คณิตศาสตร์ 4 (ค32102)", "คณิตศาสตร์เพิ่มเติม 4 (ค32202)", "คณิตศาสตร์เพื่อการตัดสินใจ (ค32202)"],
+                    "ม.6": ["คณิตศาสตร์ 6 (ค33102)", "คณิตศาสตร์เพิ่มเติม 6 (ค33202)", "สถิติเพื่อการวิเคราะห์ข้อมูล (ค33202)"]
+                }
+            },
+            "กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["วิทยาศาสตร์ 1 (ว21101)", "วิทยาการคำนวณ 1 (ว21211)", "หุ่นยนต์เบื้องต้น 1 (ว21251)", "ของเล่นของใช้ (ว21201)", "อิเล็กทรอนิกส์เบื้องต้น 1 (ว21271)"],
+                    "ม.2": ["วิทยาศาสตร์ 3 (ว22101)", "วิทยาการคำนวณ 2 (ว22211)", "ระบบหุ่นยนต์พื้นฐาน 1 (ว22271)", "วิทยาศาสตร์กับความงาม (ว22201)", "หุ่นยนต์บังคับมือ 1 (ว22251)"],
+                    "ม.3": ["วิทยาศาสตร์ 5 (ว23101)", "วิทยาการคำนวณ 3 (ว23211)", "การเขียนโปรแกรมควบคุมหุ่นยนต์ 1 (ว23251)", "ทรัพยากรและสิ่งแวดล้อม (ว23201)", "การเขียนแบบเบื้องต้น 1 (ว23271)"],
+                    "ม.4": ["วิทยาศาสตร์ 1 (ฟิสิกส์ 1) (ว30201)", "ฟิสิกส์ 1 (ว31201)", "เคมี 1 (ว31221)", "ชีววิทยา 1 (ว31241)", "วิทยาการคำนวณ 1 (ว31111)", "โลก ดาราศาสตร์และอวกาศ 1 (ว31261)", "หุ่นยนต์พื้นฐาน 1 (ว31251)"],
+                    "ม.5": ["วิทยาศาสตร์ 3 (เคมี) (ว30221)", "ฟิสิกส์ 3 (ว32201)", "เคมี 3 (ว32221)", "ชีววิทยา 3 (ว32241)", "วิทยาการคำนวณ 2 (ว32111)", "โลก ดาราศาสตร์และอวกาศ 3 (ว32261)"],
+                    "ม.6": ["วิทยาศาสตร์ 5 (โลกดาราศาสตร์) (ว30261)", "ฟิสิกส์ 5 (ว33201)", "เคมี 5 (ว33221)", "ชีววิทยา 5 (ว33241)", "วิทยาการคำนวณ 3 (ว33111)", "โลก ดาราศาสตร์และอวกาศ 5 (ว33261)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["วิทยาศาสตร์ 2 (ว21102)", "การออกแบบและเทคโนโลยี 1 (ว21212)", "พลังงานทดแทนเพื่อการเกษตร (ว21202)"],
+                    "ม.2": ["วิทยาศาสตร์ 4 (ว22102)", "การออกแบบและเทคโนโลยี 2 (ว22212)", "หุ่นยนต์และระบบอัตโนมัติ (ว22202)"],
+                    "ม.3": ["วิทยาศาสตร์ 6 (ว23102)", "การออกแบบและเทคโนโลยี 3 (ว23212)", "การแก้ปัญหาชุมชน (ว23202)"],
+                    "ม.4": ["วิทยาศาสตร์ 2 (ฟิสิกส์ 2) (ว30202)", "ฟิสิกส์ 2 (ว31201)", "เคมี 2 (ว31221)", "ชีววิทยา 2 (ว31241)", "การออกแบบและเทคโนโลยี 1 (ว31112)"],
+                    "ม.5": ["วิทยาศาสตร์ 4 (ชีววิทยา) (ว30241)", "ฟิสิกส์ 4 (ว32202)", "เคมี 4 (ว32222)", "ชีววิทยา 4 (ว32242)", "การออกแบบและเทคโนโลยี 2 (ว31112)"],
+                    "ม.6": ["วิทยาศาสตร์ 6 (โลกดาราศาสตร์) (ว30262)", "ฟิสิกส์ 6 (ว33202)", "เคมี 6 (ว33222)", "ชีววิทยา 6 (ว33242)", "การออกแบบและเทคโนโลยี 3 (ว33112)"]
+                }
+            },
+            "กลุ่มสาระสังคมศึกษา ศาสนาและวัฒนธรรม": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["สังคมศึกษา 1 (ส21101)", "ประวัติศาสตร์ไทย 1 (ส21161)", "พระพุทธศาสนา 1 (ส21111)", "หน้าที่พลเมือง 1 (ส21221)", "การป้องกันทุจริต 1 (ส21231)"],
+                    "ม.2": ["สังคมศึกษา 3 (ส22101)", "ประวัติศาสตร์ไทย 3 (ส22161)", "พระพุทธศาสนา 3 (ส22111)", "หน้าที่พลเมือง 3 (ส22221)", "การป้องกันทุจริต 3 (ส22231)", "การศึกษาค้นคว้าและสร้างองค์ความรู้ (I22201)"],
+                    "ม.3": ["สังคมศึกษา 5 (ส23101)", "ประวัติศาสตร์ไทย 5 (ส23161)", "พระพุทธศาสนา 5 (ส23111)", "หน้าที่พลเมือง 5 (ส23221)", "การป้องกันทุจริต 5 (ส23231)"],
+                    "ม.4": ["สังคมศึกษา 1 (ส31101)", "ประวัติศาสตร์ไทย 1 (ส30161)", "พระพุทธศาสนา 1 (ส31211)", "หน้าที่พลเมือง 1 (ส30221)", "การป้องกันทุจริต 1 (ส31231)", "ภูมิทัศน์ วัฒนธรรม และการท่องเที่ยว (ส31201)"],
+                    "ม.5": ["สังคมศึกษา 3 (ส32101)", "พระพุทธศาสนา 3 (ส32211)", "หน้าที่พลเมือง 3 (ส30223)", "การป้องกันทุจริต 3 (ส32231)", "ประชากรศาสตร์และสิ่งแวดล้อมร่วมสมัย (ส32201)", "การศึกษาค้นคว้าและสร้างองค์ความรู้ (I32201)"],
+                    "ม.6": ["สังคมศึกษา 5 (ส33101)", "ประวัติศาสตร์ไทย 3 (ส33161)", "พระพุทธศาสนา 5 (ส33211)", "การป้องกันทุจริต 5 (ส33231)", "อาเซียนศึกษา 1 (ส33241)", "ศาสนาในโลกสมัยใหม่ (ส33201)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["สังคมศึกษา 2 (ส21102)", "ประวัติศาสตร์ไทย 2 (ส21162)", "พระพุทธศาสนา 2 (ส21112)", "หน้าที่พลเมือง 2 (ส21222)", "การป้องกันทุจริต 2 (ส21232)"],
+                    "ม.2": ["สังคมศึกษา 4 (ส22102)", "ประวัติศาสตร์ไทย 4 (ส22162)", "พระพุทธศาสนา 4 (ส22112)", "หน้าที่พลเมือง 4 (ส22222)", "การป้องกันทุจริต 4 (ส22232)", "การสื่อสารและการนำเสนอ (I22202)"],
+                    "ม.3": ["สังคมศึกษา 6 (ส23102)", "ประวัติศาสตร์ไทย 6 (ส23162)", "พระพุทธศาสนา 6 (ส23112)", "หน้าที่พลเมือง 6 (ส23222)", "การป้องกันทุจริต 6 (ส23232)"],
+                    "ม.4": ["สังคมศึกษา 2 (ส31102)", "ประวัติศาสตร์ 2 (ส30162)", "พระพุทธศาสนา 2 (ส31212)", "หน้าที่พลเมือง 2 (ส30222)", "การป้องกันทุจริต 2 (ส31232)", "กฎหมายกับชีวิต (ส31202)"],
+                    "ม.5": ["สังคมศึกษา 4 (ส31102)", "พระพุทธศาสนา 4 (ส32212)", "หน้าที่พลเมือง 4 (ส30224)", "การป้องกันทุจริต 4 (ส32232)", "พลวัตสิ่งแวดล้อมกับการพัฒนาอย่างยั่งยืน (ส32202)", "การสื่อสารและการนำเสนอ (I32202)"],
+                    "ม.6": ["สังคมศึกษา 6 (ส33102)", "ประวัติศาสตร์ไทย 4 (ส30164)", "พระพุทธศาสนา 6 (ส33212)", "การป้องกันทุจริต 6 (ส33232)", "อาเซียนศึกษา 2 (ส33242)", "โลกาภิวัตน์กับพลเมืองแห่งอนาคต (ส33202)"]
+                }
+            },
+            "กลุ่มสาระสุขศึกษาพลศึกษา": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["สุขศึกษาและพลศึกษา 1 (พ21101)", "การเคลื่อนไหวพื้นฐาน 1 (พ21201)"],
+                    "ม.2": ["สุขศึกษาและพลศึกษา 3 (พ22101)", "ตารางเก้าช่อง 1 (พ22201)"],
+                    "ม.3": ["สุขศึกษาและพลศึกษา 5 (พ23101)", "แอโรบิกแดนซ์ 1 (ศ23201)"],
+                    "ม.4": ["สุขศึกษาและพลศึกษา 1 (พ31101)"],
+                    "ม.5": ["สุขศึกษาและพลศึกษา 3 (พ32101)"],
+                    "ม.6": ["สุขศึกษาและพลศึกษา 5 (พ33101)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["สุขศึกษาและพลศึกษา 2 (พ21102)", "การเคลื่อนไหวพื้นฐาน 2 (พ21202)"],
+                    "ม.2": ["สุขศึกษาและพลศึกษา 4 (พ22102)", "ตารางเก้าช่อง 2 (พ22202)"],
+                    "ม.3": ["สุขศึกษาและพลศึกษา 6 (พ23102)", "แอโรบิกแดนซ์ 2 (ศ23202)"],
+                    "ม.4": ["สุขศึกษาและพลศึกษา 2 (พ31102)"],
+                    "ม.5": ["สุขศึกษาและพลศึกษา 4 (พ31102)"],
+                    "ม.6": ["สุขศึกษาและพลศึกษา 6 (พ33102)"]
+                }
+            },
+            "กลุ่มสาระภาษาต่างประเทศ": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["ภาษาอังกฤษ 1 (อ21101)", "สัทอักษรจีน 1 (จ21201)", "ภาษาในงานบริการอาหารและเครื่องดื่ม 1 (อ21201)"],
+                    "ม.2": ["ภาษาอังกฤษ 3 (อ22101)", "ภาษาจีนในชีวิตประจำวัน 1 (จ22201)", "ภาษาอังกฤษในชีวิตประจำวัน 1 (อ22201)"],
+                    "ม.3": ["ภาษาอังกฤษ 5 (อ23101)", "ภาษาจีนเพื่อวัฒนธรรมภาษาจีน 1 (จ23201)", "การอ่านสื่อสิ่งพิมพ์ภาษาอังกฤษ 1 (อ23201)"],
+                    "ม.4": ["ภาษาอังกฤษ 1 (อ31101)", "ภาษาอังกฤษเพื่อวัฒนธรรม 1 (อ31201)", "ภาษาอังกฤษเพื่อการโรงแรม 1 (อ31221)", "ภาษาอังกฤษเพื่อการสื่อสาร 1 (อ31241)", "การเขียนอักษรจีน 1 (จ31201)", "ภาษาจีนเพื่อการสื่อสาร 1 (จ31221)"],
+                    "ม.5": ["ภาษาอังกฤษ 3 (อ32101)", "ภาษาอังกฤษเพื่อการท่องเที่ยว 1 (อ32201)", "ภาษาอังกฤษเพื่อการบิน 1 (อ32221)", "ภาษาอังกฤษเพื่อการสื่อสาร 3 (อ32241)", "ภาษาจีนเพื่อพัฒนาทักษะการฟัง 1 (จ32201)"],
+                    "ม.6": ["ภาษาอังกฤษ 5 (อ33101)", "ภาษาอังกฤษเพื่อการศึกษาต่อ 1 (อ33201)", "ภาษาอังกฤษเพื่ออาชีพ 1 (อ33221)", "ภาษาอังกฤษเพื่อการสื่อสาร 5 (อ33241)", "การอ่านและการแปลภาษาจีน 1 (จ33201)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["ภาษาอังกฤษ 2 (อ21102)", "สัทอักษรจีน 2 (จ21202)", "ภาษาในงานบริการอาหารและเครื่องดื่ม 2 (อ21202)"],
+                    "ม.2": ["ภาษาอังกฤษ 4 (อ22102)", "ภาษาจีนในชีวิตประจำวัน 2 (จ22202)", "ภาษาอังกฤษในชีวิตประจำวัน 2 (อ22202)"],
+                    "ม.3": ["ภาษาอังกฤษ 6 (อ23102)", "ภาษาจีนเพื่อวัฒนธรรมภาษาจีน 2 (จ23202)", "การอ่านสื่อสิ่งพิมพ์ภาษาอังกฤษ 2 (อ23202)"],
+                    "ม.4": ["ภาษาอังกฤษ 2 (อ31102)", "ภาษาอังกฤษเพื่อวัฒนธรรม 2 (อ31202)", "ภาษาอังกฤษเพื่อการโรงแรม 2 (อ31222)", "ภาษาอังกฤษเพื่อการสื่อสาร 2 (อ31242)", "การเขียนอักษรจีน 2 (จ31202)", "ภาษาจีนเพื่อการสื่อสาร 2 (จ31222)"],
+                    "ม.5": ["ภาษาอังกฤษ 4 (อ32102)", "ภาษาอังกฤษเพื่อการท่องเที่ยว 2 (อ32202)", "ภาษาอังกฤษเพื่อการบิน 2 (อ32222)", "ภาษาอังกฤษเพื่อการสื่อสาร 4 (อ32242)", "ภาษาจีนเพื่อพัฒนาทักษะการฟัง 2 (จ32202)"],
+                    "ม.6": ["ภาษาอังกฤษ 6 (อ33102)", "ภาษาอังกฤษเพื่อการศึกษาต่อ 2 (อ33202)", "ภาษาอังกฤษเพื่ออาชีพ 2 (อ33222)", "ภาษาอังกฤษเพื่อการสื่อสาร 6 (อ33242)", "การอ่านและการแปลภาษาจีน 2 (จ33202)"]
+                }
+            },
+            "กลุ่มสาระการงานอาชีพฯ": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["การงานอาชีพ 1 (งานบ้าน 1) (ง21101)", "การปลูกพืชผักสวนครัว (ง21241)", "การแปรรูปอาหารไทย (ง21221)", "การขายออนไลน์ 1 (ง21281)", "งานไฟฟ้าเบื้องต้น 1 (ง21261)"],
+                    "ม.2": ["การงานอาชีพ 3 (งานประดิษฐ์) (ง22101)", "การเพาะเลี้ยงไส้เดือน (ง22241)", "การแปรรูปน้ำพริก 1 (ง22221)", "โลจิสติกส์ 1 (ง22281)", "ช่างเดินสายไฟภายในอาคาร 1 (ง22261)"],
+                    "ม.3": ["การงานอาชีพ 5 (งานเกษตร) (ง23101)", "การปลูกพืชสมุนไพร (ง23241)", "การแปรรูปคุกกี้ (ง23221)", "โลจิสติกส์ 3 (ง23281)", "งานบริการและซ่อมเครื่องใช้ไฟฟ้า 1 (ง23261)"],
+                    "ม.4": ["การงานอาชีพ 1 (งานประดิษฐ์ 1) (ง31101)", "การบริหารจัดการธุรกิจ (ง31221)"],
+                    "ม.5": ["การงานอาชีพ 3 (งานช่าง) (ง32101)", "งานไฟฟ้าอิเล็กทรอนิกส์ 1 (ง32261)"],
+                    "ม.6": ["การงานอาชีพ 5 (การดำเนินชีวิตและครอบครัว) (ง33101)", "การขยายพันธุ์พืช (ง33241)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["การงานอาชีพ 2 (งานบ้าน 2) (ง21102)", "การปลูกไม้ดอกไม้ประดับ (ง21242)", "การแปรรูปขนมไทย (ง21222)", "การขายออนไลน์ 2 (ง21282)", "งานไฟฟ้าเบื้องต้น 2 (ง21262)"],
+                    "ม.2": ["การงานอาชีพ 4 (งานช่าง) (ง22102)", "การผลิตปุ๋ยอินทรีย์ชีวภาพ (ง22242)", "การแปรรูปน้ำพริก 2 (ง22222)", "โลจิสติกส์ 2 (ง22282)", "ช่างเดินสายไฟภายในอาคาร 2 (ง22262)"],
+                    "ม.3": ["การงานอาชีพ 6 (งานธุรกิจ) (ง23102)", "การปลูกผักไฮโดรโปรนิกส์ (ง23242)", "การแปรรูปเบเกอรี่ (ง23222)", "โลจิสติกส์ 4 (ง23282)", "งานบริการและซ่อมเครื่องใช้ไฟฟ้า 2 (ง23262)"],
+                    "ม.4": ["การงานอาชีพ 2 (งานประดิษฐ์ 2) (ง31102)", "ธุรกิจดิจิทัล (ง31222)"],
+                    "ม.5": ["การงานอาชีพ 4 (งานธุรกิจ) (ง31102)", "งานไฟฟ้าอิเล็กทรอนิกส์ 2 (ง32262)"],
+                    "ม.6": ["การงานอาชีพ 6 (งานเกษตร) (ง33102)", "การผสมดินปลูกพืช (ง33242)"]
+                }
+            },
+            "กลุ่มสาระศิลปะ": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["นาฏศิลป์ 1 (ศ20121)", "ดนตรี 1 (ศ20161)", "จิตรกรรม 1 (ศ21201)", "ดนตรีกับชีวิต (ศ21261)", "นาฏศิลป์ไทยพื้นฐานเพื่อการแสดง (ศ21241)"],
+                    "ม.2": ["ศิลปะ 2 (ศ20102)", "นาฏศิลป์ 2 (ศ20122)", "ศิลปะไทย (ศ22221)", "เพลงไทยออกภาษา (ศ22261)", "ศิลปะโขนไทย (ศ22241)"],
+                    "ม.3": ["ศิลปะ 3 (ศ20103)", "ดนตรี 4 (ศ20164)", "วาดเส้น (ศ23221)", "สุนทรียบรรเลงเพลง (ศ23261)", "ศิลปะการแสดงของไทย (ศ23241)"],
+                    "ม.4": ["ศิลปะ 1 (ดนตรี 1) (ศ31101)"],
+                    "ม.5": ["ศิลปะ 3 (นาฏศิลป์ 1) (ศ32101)"],
+                    "ม.6": ["ศิลปะ 5 (ทัศนศิลป์ 1) (ศ33101)"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["ศิลปะ 1 (ศ20101)", "ดนตรี 2 (ศ20162)", "จิตรกรรม 2 (ศ21202)", "ท่วงทำนองเพลงไทย (ศ21262)", "ศิลปะการแสดงโขนพื้นฐาน (ศ21242)"],
+                    "ม.2": ["นาฏศิลป์ 3 (ศ20123)", "ดนตรี 3 (ศ20163)", "วาดภาพระบายสี (ศ22222)", "เทคโนโลยีทางดนตรี (ศ22262)", "การละเล่นของหลวง (ศ22242)"],
+                    "ม.3": ["ศิลปะ 4 (ศ20104)", "นาฏศิลป์ 4 (ศ20124)", "ช่างเขียนตัวอักษร (ศ23222)", "การนำเสนอผลงานดนตรี (ศ23262)", "การพัฒนาทักษะนักแสดงสู่มืออาชีพ (ศ23242)"],
+                    "ม.4": ["ศิลปะ 2 (ดนตรี 2) (ศ31102)"],
+                    "ม.5": ["ศิลปะ 4 (นาฏศิลป์ 2) (ศ31102)"],
+                    "ม.6": ["ศิลปะ 6 (ทัศนศิลป์ 2) (ศ33102)"]
+                }
+            },
+            "แนะแนว/ห้องสมุด": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด (21231)"],
+                    "ม.2": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.3": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.4": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.5": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.6": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด (21232)"],
+                    "ม.2": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.3": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.4": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.5": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"],
+                    "ม.6": ["กิจกรรมแนะแนว", "กิจกรรมห้องสมุด"]
+                }
+            },
+            "ครูพี่เลี้ยง": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["กิจกรรมชุมนุม", "กิจกรรมลูกเสือ/ยุวกาชาด", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.2": ["กิจกรรมชุมนุม", "กิจกรรมลูกเสือ/ยุวกาชาด", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.3": ["กิจกรรมชุมนุม", "กิจกรรมลูกเสือ/ยุวกาชาด", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.4": ["กิจกรรมชุมนุม", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.5": ["กิจกรรมชุมนุม", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.6": ["กิจกรรมชุมนุม", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["กิจกรรมชุมนุม", "กิจกรรมลูกเสือ/ยุวกาชาด", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.2": ["กิจกรรมชุมนุม", "กิจกรรมลูกเสือ/ยุวกาชาด", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.3": ["กิจกรรมชุมนุม", "กิจกรรมลูกเสือ/ยุวกาชาด", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.4": ["กิจกรรมชุมนุม", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.5": ["กิจกรรมชุมนุม", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"],
+                    "ม.6": ["กิจกรรมชุมนุม", "กิจกรรมเพื่อสังคมและสาธารณะประโยชน์"]
+                }
+            },
+            "ครูต่างชาติ": {
+                "ภาคเรียนที่ 1": {
+                    "ม.1": ["English Communication 1"],
+                    "ม.2": ["English Communication 3"],
+                    "ม.3": ["English Communication 5"],
+                    "ม.4": ["English for Communication 1"],
+                    "ม.5": ["English for Communication 3"],
+                    "ม.6": ["English for Communication 5"]
+                },
+                "ภาคเรียนที่ 2": {
+                    "ม.1": ["English Communication 2"],
+                    "ม.2": ["English Communication 4"],
+                    "ม.3": ["English Communication 6"],
+                    "ม.4": ["English for Communication 2"],
+                    "ม.5": ["English for Communication 4"],
+                    "ม.6": ["English for Communication 6"]
+                }
+            }
+        };
+
+        // Full Teacher Database (104 Teachers across 11 Departments)
+        const teacherDatabase = [
+            {
+                dept: "กลุ่มสาระภาษาไทย",
+                teachers: [
+                    "ว่าที่ร้อยตรีหญิงเจนจิรา มาเรือน",
+                    "นายนิทัศน์ ชาวโพธิ์พระ",
+                    "นางสาวพรประภา ดีผิว",
+                    "นางสาวสิโรธร หน่ายคอน",
+                    "นายวชิรวิชญ์ จอมศิลป์",
+                    "นางสาวธนัญญา ยลถวิล",
+                    "นางสาวกุลณัฐ ภูสมพงษ์",
+                    "นายธนภัทร เปี่ยมสิน",
+                    "นางสาวปัทมา พรมศักดิ์",
+                    "นางสาวภาวิณี ศรีทะชิต"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระคณิตศาสตร์",
+                teachers: [
+                    "นางสาวเบญจมาศ หาญเสมอ",
+                    "นางธิดา สุขสถิตย์",
+                    "นายธนวัฒน์ เสรีเกียรติ",
+                    "สิบเอกหญิงวรารัตน์ ด้วงคำ",
+                    "นางสาววริศรา กทิศาสตร์",
+                    "นางสาวรัตติกาล โยนะพันธ์",
+                    "นางสาวปนัดดา ศรีมุล",
+                    "นางสาวสายรุ้ง โพธิ์นา",
+                    "นางสาวสุภารัตน์ ดอกพอง",
+                    "นายสิงหา ชัยทอง",
+                    "นางสาวสุดา ศรีประสาน"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี",
+                teachers: [
+                    "นางชมภักดิ์ ฐิตธรรมโม",
+                    "นางสาวกชกร อินทสังข์",
+                    "นายไพโรจน์ แก้วมา",
+                    "นางสาวธนิษฐา อินทมาตยากูล",
+                    "นางอลิสา ราชวัตร",
+                    "ว่าที่ร้อยตรีสวิทชัย วงษ์พินิจ",
+                    "นางสาวณัฏฐกุลนลิน กิจปัญญาคุณณ์",
+                    "นายธนากร พูลพิพัฒน์",
+                    "นางสาวกนกวรรณ กรมถิน",
+                    "นางสาวประภาพร โยธี",
+                    "นางสาวทิพย์ฤดี ผดุงล้อม",
+                    "นางสาวกชพร ใจกระเสน",
+                    "นายศราวุฒิ วิจิตร",
+                    "นายธนาวุฒิ อารีเอื้อ",
+                    "นางสาววิรัล เกษียร",
+                    "นางวรรณวิสา เสรีเกียรติ",
+                    "นางสาววิภาดา บุญรักษา",
+                    "นายจิรัฏฐ์ เจริญมฤคกัญจน์",
+                    "นายอนุพันธ์ ทุยประโคน",
+                    "นายณัฐกมล สร้อยทองพูล",
+                    "นายเตชินท์ จอมทะรักษ์",
+                    "นายชยุตพงศ์ โพธิ์ประจักษ์",
+                    "นางสาวสุวิมล แกล้วกล้า"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระสุขศึกษาพลศึกษา",
+                teachers: [
+                    "นายสมอานุภาพ ศรีมงคล",
+                    "นางสาวธารทิพย์ แก้วกูล",
+                    "ว่าที่ร้อยตรีหญิงอิสรีย์ ศรีหะสุทธิ์",
+                    "ว่าที่ร้อยตรีหญิงสุกัญญา สุปัญญาบุตร",
+                    "นายไตรปิฎก บุญปถัมภ์",
+                    "นายอนุพงษ์ เหลืองอ่อน"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระภาษาต่างประเทศ",
+                teachers: [
+                    "นางสาวเจษฎาภรณ์ ป้องเขตร",
+                    "นางสาวศศิลักษณ์ เกตุจรุง",
+                    "นางสาววันนิภา ทองเหลือง",
+                    "นางสาวคัทริน สอนแสนสุข",
+                    "นางสาวภัศรา บุญเจือ",
+                    "นางจินดาหรา ลมัยเกศ",
+                    "นางสาวบุณญนุช พรมานุสรณ์",
+                    "นายปริญญา ศิริเตียวศรี",
+                    "นายนวพล แก้วทรัพย์ทวีกุล",
+                    "นางสาวศิริรัตน์ แพงศิริ",
+                    "นางสาวกัญญา ปัญจพาณิชย์กุล",
+                    "นางสาวทิพย์สุดา สวนม่วง",
+                    "นางสาววิลาวัลย์ คลายทุกข์",
+                    "นางสาวจุฑาทิพ สายจันดี",
+                    "นางสาวชลลดา เกล็ดงูเหลือม"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระสังคมศึกษา ศาสนาและวัฒนธรรม",
+                teachers: [
+                    "นายศตวีร์ ทีภูเวียง",
+                    "นางสาวนิรมล อดทน",
+                    "นางสาวนิตยา จันทร์สงเคราะห์",
+                    "นางพิชญ์พิสุทธิ์ คุรุธรรมวงศา",
+                    "นายเชาวเลิศ มากสมบูรณ์",
+                    "นางสาววิมลรัตน์ กาญจนวิลาศ",
+                    "นายนพดล หาทรัพย์",
+                    "นางสาวทิพรดา สว่างไพร",
+                    "นายศุภชัย เบ้าทอง",
+                    "นางสาวอัญธิญาน์ อมรสิริเมธารัฐ",
+                    "นางสาวณัฏฐณิชา สีเมืองเพีย",
+                    "นายนพรัตน์ สัตย์ซ้ำ",
+                    "นายคิมหันต์ มูลเมือง"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระการงานอาชีพฯ",
+                teachers: [
+                    "นางสาวเพชรไพลิน มหาเพชร",
+                    "นายณรัณธกรณ์ นาราณฐนันทน์",
+                    "นางสาวปัทมวัลย์ บุญถนอม",
+                    "นางสาวธัญญาภรณ์ ปาสำลี",
+                    "นายนิพนธิ์ ร้านจันทร์",
+                    "นางสาวณาตยา สุเมธีนฤมิต",
+                    "นางสาววริศรา จันหัวนา",
+                    "นางสาวกมลวรรณ สุขเจริญ",
+                    "นางสาวศิริถาพร สำแดงเดช"
+                ]
+            },
+            {
+                dept: "กลุ่มสาระศิลปะ",
+                teachers: [
+                    "นางสาวฉัตรแก้ว ชื่นกมล",
+                    "นายวิศวชัย คงศร",
+                    "นายวิชิต อุ่นทะเล",
+                    "นางสาวกมณนันต์ โทธกานันท์",
+                    "นางสาวณัฐธิดา สุขสุผล",
+                    "นางสาวสุพิชญา พงศ์สุวรรณ",
+                    "นางสาวสุกัลยา ทองคำ",
+                    "ว่าที่ร้อยตรีทศพร วรรณคำ"
+                ]
+            },
+            {
+                dept: "แนะแนว/ห้องสมุด",
+                teachers: [
+                    "นางสาวนันทิกร โพธิภูมิ",
+                    "นางสาวสุกัญญา เอี่ยมประยูร",
+                    "นางสาวทิพย์นภา ยี่สุ่น",
+                    "นายจิรยุทธ ธราปุญญสิน"
+                ]
+            },
+            {
+                dept: "ครูพี่เลี้ยง",
+                teachers: [
+                    "นางสาววริษฐา เสนาธรรม"
+                ]
+            },
+            {
+                dept: "ครูต่างชาติ",
+                teachers: [
+                    "MISS JEAN SISON MAQUINTO",
+                    "MISS MARY ELEONOR OROSIO LUBO",
+                    "MR. EMAD AHMED KHALAF ABDULLAH",
+                    "MR. FRANCISCO JR LERADO MAIT"
+                ]
+            }
+        ];
+
+        // 20 Standard Evaluation Questions
+        const questionsList = [
+            { id: 1, domain: 1, text: "ครูแจ้งผลการเรียนรู้ชัดเจน" },
+            { id: 2, domain: 1, text: "เนื้อหาที่สอนทันสมัยเสมอ" },
+            { id: 3, domain: 1, text: "ครูใช้สื่อประกอบการสอน" },
+            { id: 4, domain: 1, text: "ครูประยุกต์สาระที่สอนเข้ากับเหตุการณ์ปัจจุบัน / สภาพแวดล้อม" },
+            { id: 5, domain: 1, text: "ครูให้นักเรียนแสวงหาความรู้จากแหล่งเรียนรู้ต่างๆ" },
+            
+            { id: 6, domain: 2, text: "กิจกรรมการเรียนรู้สนุกและน่าสนใจ" },
+            { id: 7, domain: 2, text: "ครูใช้คำถามถามนักเรียนบ่อยๆ" },
+            { id: 8, domain: 2, text: "ครูส่งเสริมให้นักเรียนคิดริเริ่มและรู้จักวิพากษ์วิจารณ์" },
+            { id: 9, domain: 2, text: "ครูให้นักเรียนทำงานร่วมกันทั้งกลุ่มและรายบุคคล" },
+            { id: 10, domain: 2, text: "ครูให้โอกาสนักเรียนซักถามปัญหา" },
+            
+            { id: 11, domain: 3, text: "ครูยอมรับความคิดเห็นของนักเรียนที่ต่างไปจากครู" },
+            { id: 12, domain: 3, text: "ครูให้ความสนใจนักเรียนขณะสอนทั่วถึงทุกคน" },
+            { id: 13, domain: 3, text: "ครูให้ความช่วยเหลือหรืออำนวยความสะดวกแก่นักเรียนในการเรียน" },
+            { id: 14, domain: 3, text: "นักเรียนทราบเกณฑ์การวัดและประเมินผล" },
+            { id: 15, domain: 3, text: "นักเรียนมีส่วนร่วมในการวัดและประเมินผล" },
+            { id: 16, domain: 3, text: "ครูประเมินผลการเรียนอย่างยุติธรรม" },
+            
+            { id: 17, domain: 4, text: "ครูมีความตั้งใจในการสอน" },
+            { id: 18, domain: 4, text: "บุคลิกภาพ การแต่งกายของครูเหมาะสม" },
+            { id: 19, domain: 4, text: "การพูดจาของครูเหมาะสม" },
+            { id: 20, domain: 4, text: "ครูเข้าสอนและออกตรงตามเวลา" }
+        ];
+
+        const domainNames = [
+            "ด้านที่ 1: การเตรียมการสอน สื่อ และเนื้อหา",
+            "ด้านที่ 2: วิธีการสอน เทคนิค และบรรยากาศ",
+            "ด้านที่ 3: การดูแล และการวัดประเมินผล",
+            "ด้านที่ 4: คุณธรรม จริยธรรม และบุคลิกภาพ"
+        ];
+
+        // Chart instances
+        let radarChartInstance = null;
+        let donutChartInstance = null;
+        let teacherRadarInstance = null;
+        let teacherDomainBarInstance = null;
+        let teacherBarInstance = null;
+
+        // Initialize Application
+        document.addEventListener("DOMContentLoaded", () => {
+            initDepartmentDropdowns();
+            renderFormQuestions();
+            renderCurriculumSubjects(activeCurriculumSemesterView);
+            initOverallCharts();
+            
+            // ดึงข้อมูลออนไลน์จาก Google Sheets ทันทีที่เปิดหน้าเว็บ
+            if (GOOGLE_SHEET_WEB_APP_URL !== "") {
+                fetchCloudData();
+            } else {
+                updateDashboardView();
+                renderTeacherAnalytics();
+            }
+            
+            // Set Student Mode as the default landing view
+            enableStudentMode(true);
+            
+            // Check hash in URL
+            if (window.location.hash) {
+                const targetTab = window.location.hash.replace('#', '');
+                if (['form', 'criteria'].includes(targetTab)) {
+                    switchTab(targetTab);
+                }
+            }
+        });
+
+        // ☁️ ฟังก์ชันดึงข้อมูลจาก Google Sheets
+        async function fetchCloudData() {
+            try {
+                const response = await fetch(GOOGLE_SHEET_WEB_APP_URL);
+                const data = await response.json();
+                if (data && Array.isArray(data)) {
+                    evaluationsStore = data.map(item => ({
+                        ...item,
+                        timestamp: new Date(item.timestamp)
+                    }));
+                    updateDashboardView();
+                    renderTeacherAnalytics();
+                }
+            } catch (error) {
+                console.error("ไม่สามารถเชื่อมต่อฐานข้อมูล Google Sheets ได้", error);
+            }
+        }
+
+        // Open PIN Unlock Modal Dialog
+        function openPinModal() {
+            const modal = document.getElementById('pin-modal');
+            const pinInput = document.getElementById('pin-input');
+            const errorMsg = document.getElementById('pin-error-msg');
+            
+            pinInput.value = '';
+            errorMsg.classList.add('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => pinInput.focus(), 100);
+        }
+
+        // Close PIN Modal Dialog
+        function closePinModal() {
+            document.getElementById('pin-modal').classList.add('hidden');
+        }
+
+        // Handle PIN Form Submission
+        function handlePinSubmit(event) {
+            event.preventDefault();
+            const pinInput = document.getElementById('pin-input').value;
+            const errorMsg = document.getElementById('pin-error-msg');
+
+            if (pinInput === ADMIN_PIN) {
+                closePinModal();
+                enableStudentMode(false); // Enable Admin Mode
+            } else {
+                errorMsg.classList.remove('hidden');
+                document.getElementById('pin-input').value = '';
+                document.getElementById('pin-input').focus();
+            }
+        }
+
+        // Enable / Disable Student Mode UI State
+        function enableStudentMode(enable) {
+            isStudentMode = enable;
+            const badge = document.getElementById('role-badge');
+            const toggleIcon = document.getElementById('toggle-mode-icon');
+            const toggleText = document.getElementById('toggle-mode-text');
+            const navTabs = document.getElementById('nav-tabs-container');
+            const banner = document.getElementById('student-mode-banner');
+
+            if (enable) {
+                // STUDENT MODE ACTIVE
+                badge.textContent = "โหมดนักเรียน";
+                badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-200 text-indigo-900 border border-indigo-400";
+                toggleIcon.textContent = "🔓";
+                toggleText.textContent = "เข้าสู่โหมดผู้บริหาร (กรอก PIN)";
+                navTabs.classList.add('hidden');
+                banner.classList.remove('hidden');
+                
+                // Force view to Form Section only
+                switchTab('form');
+            } else {
+                // ADMIN MODE UNLOCKED
+                badge.textContent = "โหมดผู้บริหาร";
+                badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400 text-indigo-950 shadow-sm";
+                toggleIcon.textContent = "🔒";
+                toggleText.textContent = "สลับเป็นโหมดนักเรียน (ทำแบบประเมินเท่านั้น)";
+                navTabs.classList.remove('hidden');
+                banner.classList.add('hidden');
+                
+                // Switch to Executive Dashboard on Admin Unlock
+                switchTab('dashboard');
+            }
+        }
+
+        // Initialize Department Select Options
+        function initDepartmentDropdowns() {
+            const formDeptSelect = document.getElementById('form-dept-select');
+            const analyticsDeptSelect = document.getElementById('analytics-dept-select');
+
+            teacherDatabase.forEach((item) => {
+                const opt1 = document.createElement('option');
+                opt1.value = item.dept;
+                opt1.textContent = `${item.dept} (${item.teachers.length} ท่าน)`;
+                formDeptSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = item.dept;
+                opt2.textContent = `${item.dept} (${item.teachers.length} ท่าน)`;
+                analyticsDeptSelect.appendChild(opt2);
+            });
+
+            formDeptSelect.selectedIndex = 0;
+            analyticsDeptSelect.selectedIndex = 0;
+
+            onFormDeptOrSemesterChange();
+            updateAnalyticsTeacherDropdown();
+        }
+
+        // Form Event Trigger on Dept or Semester change
+        function onFormDeptOrSemesterChange() {
+            updateFormTeacherDropdown();
+            updateFormSubjectDropdown();
+        }
+
+        // Dynamic Teacher Dropdown for Form
+        function updateFormTeacherDropdown() {
+            const deptVal = document.getElementById('form-dept-select').value;
+            const teacherSelect = document.getElementById('form-teacher-select');
+            teacherSelect.innerHTML = '';
+
+            const deptData = teacherDatabase.find(d => d.dept === deptVal);
+            if (deptData) {
+                deptData.teachers.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    teacherSelect.appendChild(opt);
+                });
+            } else {
+                teacherSelect.innerHTML = '<option value="">-- โปรดเลือกกลุ่มสาระฯ ก่อน --</option>';
+            }
+        }
+
+        // Dynamic Subject Dropdown based on Semester & Department (showing M.1 to M.6 grouped)
+        function updateFormSubjectDropdown() {
+            const deptVal = document.getElementById('form-dept-select').value;
+            const semVal = document.getElementById('form-semester-select').value;
+            const subjectSelect = document.getElementById('form-subject-select');
+            subjectSelect.innerHTML = '';
+
+            if (curriculumSubjectDatabase[deptVal] && curriculumSubjectDatabase[deptVal][semVal]) {
+                const semData = curriculumSubjectDatabase[deptVal][semVal];
+                const grades = ["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"];
+                let hasSubjects = false;
+
+                grades.forEach(grade => {
+                    if (semData[grade] && semData[grade].length > 0) {
+                        hasSubjects = true;
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = `ระดับชั้น ${grade}`;
+                        
+                        semData[grade].forEach(sub => {
+                            const opt = document.createElement('option');
+                            opt.value = sub;
+                            opt.textContent = sub;
+                            optgroup.appendChild(opt);
+                        });
+                        subjectSelect.appendChild(optgroup);
+                    }
+                });
+
+                if (!hasSubjects) {
+                    subjectSelect.innerHTML = `<option value="">-- ไม่มีข้อมูลรายวิชาสำหรับภาคเรียนนี้ --</option>`;
+                }
+            } else {
+                subjectSelect.innerHTML = `<option value="">-- เลือกกลุ่มสาระฯ และภาคเรียน เพื่อโหลดรายวิชา --</option>`;
+            }
+        }
+
+        // Render Curriculum Subject Cards per Semester Tab
+        function renderCurriculumSubjects(semesterName) {
+            activeCurriculumSemesterView = semesterName;
+            const btn1 = document.getElementById('btn-sem-1');
+            const btn2 = document.getElementById('btn-sem-2');
+
+            if (semesterName === 'ภาคเรียนที่ 1') {
+                btn1.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition-all bg-indigo-600 text-white shadow";
+                btn2.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900";
+            } else {
+                btn2.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition-all bg-indigo-600 text-white shadow";
+                btn1.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900";
+            }
+
+            const container = document.getElementById('curriculum-subject-grid');
+            container.innerHTML = '';
+
+            Object.keys(curriculumSubjectDatabase).forEach(deptKey => {
+                const deptObj = curriculumSubjectDatabase[deptKey];
+                if (!deptObj[semesterName]) return;
+
+                const semData = deptObj[semesterName];
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 hover:border-indigo-300 transition-all";
+
+                // Combine grades for display purpose
+                const mTon = [...(semData["ม.1"]||[]), ...(semData["ม.2"]||[]), ...(semData["ม.3"]||[])];
+                const mPlai = [...(semData["ม.4"]||[]), ...(semData["ม.5"]||[]), ...(semData["ม.6"]||[])];
+
+                card.innerHTML = `
+                    <div class="font-bold text-indigo-900 text-sm border-b pb-2 flex justify-between items-center">
+                        <span>${deptKey}</span>
+                        <span class="text-[10px] px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md">${semesterName}</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <span class="text-[11px] font-bold text-slate-500 uppercase">มัธยมศึกษาตอนต้น (ม.1 - ม.3):</span>
+                            <ul class="list-disc list-inside text-xs text-slate-700 mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+                                ${mTon.length > 0 ? mTon.map(s => `<li>${s}</li>`).join('') : '<li class="text-slate-400">ไม่มีข้อมูล</li>'}
+                            </ul>
+                        </div>
+                        <div class="pt-1 border-t border-slate-200/60">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase">มัธยมศึกษาตอนปลาย (ม.4 - ม.6):</span>
+                            <ul class="list-disc list-inside text-xs text-slate-700 mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+                                ${mPlai.length > 0 ? mPlai.map(s => `<li>${s}</li>`).join('') : '<li class="text-slate-400">ไม่มีข้อมูล</li>'}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterCurriculumSemester(sem) {
+            renderCurriculumSubjects(sem);
+        }
+
+        // Dynamic Teacher Dropdown for Analytics
+        function updateAnalyticsTeacherDropdown() {
+            const deptVal = document.getElementById('analytics-dept-select').value;
+            const teacherSelect = document.getElementById('analytics-teacher-select');
+            teacherSelect.innerHTML = '';
+
+            const deptData = teacherDatabase.find(d => d.dept === deptVal);
+            if (deptData) {
+                deptData.teachers.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    teacherSelect.appendChild(opt);
+                });
+            }
+            renderTeacherAnalytics();
+        }
+
+        // Calculate Analytics Data for Selected Teacher
+        function getTeacherAnalyticsData(teacherName, semesterFilter = "ทั้งหมด") {
+            let teacherEvals = evaluationsStore.filter(e => e.teacher === teacherName);
+            
+            if (semesterFilter !== "ทั้งหมด") {
+                teacherEvals = teacherEvals.filter(e => e.semester === semesterFilter);
+            }
+
+            if (teacherEvals.length === 0) {
+                return {
+                    overall: 0,
+                    scores: Array(20).fill(0),
+                    domainScores: [0, 0, 0, 0],
+                    comments: [],
+                    count: 0
+                };
+            }
+
+            const itemSums = Array(20).fill(0);
+            const comments = [];
+
+            teacherEvals.forEach(ev => {
+                ev.scores.forEach((s, idx) => {
+                    itemSums[idx] += s;
+                });
+                if (ev.impress && ev.impress.trim() !== "") {
+                    comments.push({ type: "impress", text: ev.impress, sem: ev.semester, sub: ev.subject });
+                }
+                if (ev.suggestions && ev.suggestions.trim() !== "") {
+                    comments.push({ type: "suggest", text: ev.suggestions, sem: ev.semester, sub: ev.subject });
+                }
+            });
+
+            const itemAverages = itemSums.map(sum => parseFloat((sum / teacherEvals.length).toFixed(2)));
+            const overallAvg = itemAverages.reduce((a, b) => a + b, 0) / 20;
+
+            // Domain Averages
+            const d1 = parseFloat(((itemAverages[0]+itemAverages[1]+itemAverages[2]+itemAverages[3]+itemAverages[4])/5).toFixed(2));
+            const d2 = parseFloat(((itemAverages[5]+itemAverages[6]+itemAverages[7]+itemAverages[8]+itemAverages[9])/5).toFixed(2));
+            const d3 = parseFloat(((itemAverages[10]+itemAverages[11]+itemAverages[12]+itemAverages[13]+itemAverages[14]+itemAverages[15])/6).toFixed(2));
+            const d4 = parseFloat(((itemAverages[16]+itemAverages[17]+itemAverages[18]+itemAverages[19])/4).toFixed(2));
+
+            return {
+                overall: parseFloat(overallAvg.toFixed(2)),
+                scores: itemAverages,
+                domainScores: [d1, d2, d3, d4],
+                comments: comments,
+                count: teacherEvals.length
+            };
+        }
+
+        // Calculate School-wide Domain Averages
+        function getSchoolDomainAverages(semesterFilter = "ทั้งหมด") {
+            let filteredList = evaluationsStore;
+            if (semesterFilter !== "ทั้งหมด") {
+                filteredList = filteredList.filter(e => e.semester === semesterFilter);
+            }
+
+            if (filteredList.length === 0) return [0, 0, 0, 0];
+            const itemSums = Array(20).fill(0);
+            filteredList.forEach(ev => {
+                ev.scores.forEach((s, idx) => { itemSums[idx] += s; });
+            });
+            const itemAvgs = itemSums.map(s => s / filteredList.length);
+            const d1 = parseFloat(((itemAvgs[0]+itemAvgs[1]+itemAvgs[2]+itemAvgs[3]+itemAvgs[4])/5).toFixed(2));
+            const d2 = parseFloat(((itemAvgs[5]+itemAvgs[6]+itemAvgs[7]+itemAvgs[8]+itemAvgs[9])/5).toFixed(2));
+            const d3 = parseFloat(((itemAvgs[10]+itemAvgs[11]+itemAvgs[12]+itemAvgs[13]+itemAvgs[14]+itemAvgs[15])/6).toFixed(2));
+            const d4 = parseFloat(((itemAvgs[16]+itemAvgs[17]+itemAvgs[18]+itemAvgs[19])/4).toFixed(2));
+            return [d1, d2, d3, d4];
+        }
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            if (isStudentMode && tabId !== 'form') {
+                return; // Prevent navigating away from form in student mode
+            }
+
+            const tabs = ['dashboard', 'analytics', 'form', 'criteria'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const sec = document.getElementById(`sec-${t}`);
+                if (t === tabId) {
+                    if (btn) btn.className = "nav-btn px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors bg-indigo-600 text-white shadow";
+                    if (sec) sec.classList.remove('hidden');
+                } else {
+                    if (btn) btn.className = "nav-btn px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/50";
+                    if (sec) sec.classList.add('hidden');
+                }
+            });
+
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        // Render 20 Items Form Questions
+        function renderFormQuestions() {
+            questionsList.forEach(q => {
+                const container = document.getElementById(`domain-${q.domain}-questions`);
+                if (!container) return;
+
+                const card = document.createElement('div');
+                card.className = "p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-white hover:border-indigo-200 transition-all";
+                
+                card.innerHTML = `
+                    <div class="text-sm text-slate-800 font-medium">
+                        <span class="font-bold text-indigo-700 mr-1">${q.id}.</span> ${q.text}
+                    </div>
+                    <div class="flex items-center space-x-2 sm:space-x-4 self-end md:self-center">
+                        ${[5, 4, 3, 2, 1].map(score => `
+                            <label class="flex flex-col items-center cursor-pointer text-xs group">
+                                <input type="radio" name="q_${q.id}" value="${score}" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                <span class="text-[10px] text-slate-500 group-hover:text-indigo-600 mt-0.5">${score}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Handle Form Submission Simulator (Now with Cloud Saving)
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('submit-btn');
+            const submitText = document.getElementById('submit-text');
+            const submitIcon = document.getElementById('submit-icon');
+
+            const teacherName = document.getElementById('form-teacher-select').value;
+            const semester = document.getElementById('form-semester-select').value;
+            const subjectSelect = document.getElementById('form-subject-select');
+            
+            const subject = subjectSelect.value;
+            const selectedOption = subjectSelect.options[subjectSelect.selectedIndex];
+            const level = selectedOption ? (selectedOption.parentNode.label || 'รวม ม.1-ม.6') : 'รวม ม.1-ม.6';
+
+            const impress = document.getElementById('form-impress').value;
+            const suggestions = document.getElementById('form-suggestions').value;
+
+            // เปลี่ยนสถานะปุ่ม
+            submitBtn.disabled = true;
+            submitBtn.classList.replace('bg-indigo-600', 'bg-slate-400');
+            submitText.textContent = "กำลังบันทึกข้อมูล...";
+            submitIcon.textContent = "⏳";
+
+            const scores = [];
+            let formData = new FormData();
+            formData.append('teacher', teacherName);
+            formData.append('semester', semester);
+            formData.append('level', level);
+            formData.append('subject', subject);
+            formData.append('impress', impress);
+            formData.append('suggestions', suggestions);
+
+            for (let i = 1; i <= 20; i++) {
+                const val = document.querySelector(`input[name="q_${i}"]:checked`)?.value;
+                const scoreNum = parseInt(val || 5, 10);
+                scores.push(scoreNum);
+                formData.append(`q_${i}`, scoreNum); // ใส่คะแนนแต่ละข้อลงฟอร์ม
+            }
+
+            try {
+                // 1. ส่งข้อมูลขึ้น Google Sheets แบบ Background (ถ้าใส่ URL ไว้)
+                if (GOOGLE_SHEET_WEB_APP_URL !== "") {
+                    fetch(GOOGLE_SHEET_WEB_APP_URL, {
+                        method: 'POST',
+                        body: formData,
+                        mode: 'no-cors' // ให้ส่งผ่านได้โดยไม่ต้องรอโหลดหน้าใหม่
+                    });
+                }
+
+                // 2. บันทึกลงในหน่วยความจำบนหน้าเว็บทันที เพื่อให้ไม่ต้องโหลดใหม่
+                evaluationsStore.push({
+                    teacher: teacherName,
+                    semester: semester,
+                    level: level,
+                    subject: subject,
+                    scores: scores,
+                    impress: impress,
+                    suggestions: suggestions,
+                    timestamp: new Date()
+                });
+
+                // แสดงข้อความสำเร็จ
+                showSuccessModal(teacherName, subject, semester);
+                
+                document.getElementById('evaluation-form').reset();
+                onFormDeptOrSemesterChange();
+                updateDashboardView();
+                renderTeacherAnalytics();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            } catch (error) {
+                alert("เกิดข้อผิดพลาดในการส่งข้อมูล โปรดตรวจสอบอินเทอร์เน็ต");
+                console.error(error);
+            } finally {
+                // คืนค่าปุ่ม
+                submitBtn.disabled = false;
+                submitBtn.classList.replace('bg-slate-400', 'bg-indigo-600');
+                submitText.textContent = "ส่งแบบประเมิน";
+                submitIcon.textContent = "🚀";
+            }
+        }
+
+        // Show Success Modal
+        function showSuccessModal(teacherName, subject, semester) {
+            const modal = document.getElementById('success-modal');
+            const modalContent = document.getElementById('success-modal-content');
+            const msg = document.getElementById('success-modal-msg');
+
+            msg.innerHTML = `บันทึกข้อมูลการประเมินการสอนของ <strong>${teacherName}</strong><br>วิชา: ${subject} (${semester}) เรียบร้อยแล้ว!<br><br><span class="text-xs text-emerald-600 font-medium">ขอบคุณนักเรียนที่ร่วมให้ข้อมูลเพื่อการพัฒนาคุณภาพการเรียนรู้</span>`;
+
+            modal.classList.remove('hidden');
+            // Trigger reflow for animation
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+            modalContent.classList.add('scale-100');
+        }
+
+        // Close Success Modal
+        function closeSuccessModal() {
+            const modal = document.getElementById('success-modal');
+            const modalContent = document.getElementById('success-modal-content');
+
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+
+            // Wait for transition to finish before hiding
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Initialize School Dashboard Charts
+        function initOverallCharts() {
+            // Radar Chart
+            const ctxRadar = document.getElementById('chart-dimensions-radar').getContext('2d');
+            radarChartInstance = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        ['1. การเตรียมการสอน', 'สื่อ & เนื้อหา'],
+                        ['2. เทคนิคการสอน', '& บรรยากาศ'],
+                        ['3. การดูแล และ', 'การวัดประเมินผล'],
+                        ['4. คุณธรรม จริยธรรม', '& บุคลิกภาพ']
+                    ],
+                    datasets: [{
+                        label: 'คะแนนเฉลี่ยภาพรวมโรงเรียน',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 5,
+                            ticks: { stepSize: 1, font: { family: 'Sarabun' } },
+                            pointLabels: { font: { family: 'Sarabun', size: 11, weight: 'bold' } }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { font: { family: 'Sarabun' } } }
+                    }
+                }
+            });
+
+            // Donut Chart
+            const ctxDonut = document.getElementById('chart-rating-donut').getContext('2d');
+            donutChartInstance = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['5 (มากที่สุด)', '4 (มาก)', '3 (ปานกลาง)', '2 (น้อย)', '1 (ควรปรับปรุง)'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#4f46e5', '#0d9488', '#f59e0b', '#fb923c', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // Update Overall Dashboard Data Dynamically
+        function updateDashboardView() {
+            const semFilter = document.getElementById('dashboard-semester-filter').value;
+            let list = evaluationsStore;
+            if (semFilter !== "ทั้งหมด") {
+                list = list.filter(e => e.semester === semFilter);
+            }
+
+            const totalCount = list.length;
+            document.getElementById('kpi-total-evaluations').textContent = totalCount;
+
+            if (totalCount === 0) {
+                document.getElementById('kpi-total-avg').textContent = "0.00 / 5.00";
+                document.getElementById('kpi-status-tag').textContent = `สถานะ: ยังไม่มีข้อมูล (${semFilter})`;
+                document.getElementById('kpi-status-tag').className = "text-xs text-amber-600 font-medium";
+
+                radarChartInstance.data.datasets[0].data = [0, 0, 0, 0];
+                radarChartInstance.update();
+
+                donutChartInstance.data.datasets[0].data = [0, 0, 0, 0, 0];
+                donutChartInstance.update();
+
+                document.getElementById('top-strengths-list').innerHTML = `
+                    <li class="bg-white p-3 rounded-lg border border-emerald-200/50 text-slate-400 text-center text-xs">
+                        รอนักเรียนทำแบบประเมินเพื่อคำนวณประมวลผล
+                    </li>`;
+                document.getElementById('top-focus-list').innerHTML = `
+                    <li class="bg-white p-3 rounded-lg border border-amber-200/50 text-slate-400 text-center text-xs">
+                        รอนักเรียนทำแบบประเมินเพื่อคำนวณประมวลผล
+                    </li>`;
+                return;
+            }
+
+            let grandTotal = 0;
+            const itemTotals = Array(20).fill(0);
+            const scoreCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+
+            list.forEach(ev => {
+                ev.scores.forEach((s, idx) => {
+                    itemTotals[idx] += s;
+                    grandTotal += s;
+                    if (scoreCounts[s] !== undefined) scoreCounts[s]++;
+                });
+            });
+
+            const schoolAvg = grandTotal / (totalCount * 20);
+            document.getElementById('kpi-total-avg').textContent = `${schoolAvg.toFixed(2)} / 5.00`;
+            document.getElementById('kpi-status-tag').textContent = schoolAvg >= 4.5 ? "อยู่ในเกณฑ์: ดีมาก (Very Good)" : schoolAvg >= 3.5 ? "อยู่ในเกณฑ์: ดี (Good)" : "อยู่ในเกณฑ์: ควรปรับปรุง";
+            document.getElementById('kpi-status-tag').className = schoolAvg >= 4.5 ? "text-xs text-emerald-600 font-medium" : "text-xs text-indigo-600 font-medium";
+
+            const schoolDomains = getSchoolDomainAverages(semFilter);
+            radarChartInstance.data.datasets[0].data = schoolDomains;
+            radarChartInstance.update();
+
+            donutChartInstance.data.datasets[0].data = [
+                scoreCounts[5], scoreCounts[4], scoreCounts[3], scoreCounts[2], scoreCounts[1]
+            ];
+            donutChartInstance.update();
+
+            const itemAvgs = itemTotals.map(sum => sum / totalCount);
+            const sortedQuestions = itemAvgs.map((avg, idx) => ({
+                id: idx + 1,
+                text: questionsList[idx].text,
+                avg: parseFloat(avg.toFixed(2))
+            })).sort((a, b) => b.avg - a.avg);
+
+            const top3 = sortedQuestions.slice(0, 3);
+            const bottom3 = sortedQuestions.slice(-3).reverse();
+
+            document.getElementById('top-strengths-list').innerHTML = top3.map((q) => `
+                <li class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-emerald-200/50 text-xs">
+                    <span><strong>${q.id}.</strong> ${q.text}</span>
+                    <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded ml-2">${q.avg.toFixed(2)}</span>
+                </li>
+            `).join('');
+
+            document.getElementById('top-focus-list').innerHTML = bottom3.map((q) => `
+                <li class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-amber-200/50 text-xs">
+                    <span><strong>${q.id}.</strong> ${q.text}</span>
+                    <span class="font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded ml-2">${q.avg.toFixed(2)}</span>
+                </li>
+            `).join('');
+        }
+
+        // 📥 ดาวน์โหลดข้อมูลเป็นไฟล์ CSV เพื่อเปิดใน Excel หรือ Google Sheets
+        function exportToCSV() {
+            if (evaluationsStore.length === 0) {
+                alert('ยังไม่มีข้อมูลการประเมินในระบบ สำหรับการดาวน์โหลด');
+                return;
+            }
+
+            // เพิ่ม UTF-8 BOM (\uFEFF) ลงไปที่ส่วนหัวไฟล์ เพื่อให้โปรแกรมอย่าง MS Excel อ่านภาษาไทยได้ถูกต้อง ไม่เป็นตัวต่างดาว
+            let csvContent = "\uFEFF"; 
+            
+            // หัวตาราง (Headers)
+            const headers = [
+                "วันเวลาที่ประเมิน",
+                "ชื่อครูผู้สอน",
+                "ภาคเรียน",
+                "ระดับชั้น",
+                "วิชา",
+                "คะแนนเฉลี่ยรวม (เต็ม 5)",
+                "สิ่งที่ประทับใจ",
+                "ข้อเสนอแนะเพื่อการปรับปรุง",
+                ...questionsList.map(q => `ข้อ ${q.id}`) // แยกคะแนนแต่ละข้อ
+            ];
+            csvContent += headers.join(",") + "\n";
+
+            // ข้อมูลการประเมิน (Rows)
+            evaluationsStore.forEach(ev => {
+                const dateStr = ev.timestamp.toLocaleString('th-TH');
+                const totalScore = (ev.scores.reduce((a, b) => a + b, 0) / 20).toFixed(2);
+                
+                // ฟังก์ชันย่อยสำหรับจัดการเครื่องหมายลูกน้ำและการเคาะบรรทัดในข้อความ (ป้องกันไฟล์ CSV พัง)
+                const escapeCSV = (str) => {
+                    if (!str) return '""';
+                    return `"${str.toString().replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+                };
+
+                const row = [
+                    escapeCSV(dateStr),
+                    escapeCSV(ev.teacher),
+                    escapeCSV(ev.semester),
+                    escapeCSV(ev.level),
+                    escapeCSV(ev.subject),
+                    totalScore,
+                    escapeCSV(ev.impress),
+                    escapeCSV(ev.suggestions),
+                    ...ev.scores
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            // สร้างไฟล์จำลองบนเบราว์เซอร์และสั่งดาวน์โหลด
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "ข้อมูลประเมินการสอน_โรงเรียนพานทองสภาชนูปถัมภ์.csv");
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Render Individual Teacher Analytics & Graph Summaries
+        function renderTeacherAnalytics() {
+            const deptVal = document.getElementById('analytics-dept-select').value;
+            const teacherVal = document.getElementById('analytics-teacher-select').value;
+            const semesterFilter = document.getElementById('analytics-semester-filter').value;
+
+            if (!teacherVal) return;
+
+            document.getElementById('analytics-teacher-title').textContent = `3. กราฟรายละเอียดคะแนนเฉลี่ยทั้ง 20 รายการประเมิน: ${teacherVal}`;
+            document.getElementById('analytics-dept-title').textContent = `${deptVal} (${semesterFilter})`;
+            document.getElementById('teacher-summary-name').textContent = teacherVal;
+            document.getElementById('teacher-summary-dept').textContent = `สังกัด: ${deptVal} | ตัวกรอง: ${semesterFilter}`;
+
+            const data = getTeacherAnalyticsData(teacherVal, semesterFilter);
+            const schoolDomains = getSchoolDomainAverages(semesterFilter);
+
+            // 1. Update Executive Summary & Metric Cards
+            document.getElementById('teacher-summary-score').textContent = `${data.overall.toFixed(2)} / 5.00`;
+            document.getElementById('teacher-metric-count').textContent = `${data.count} ครั้ง`;
+
+            const badgeEl = document.getElementById('teacher-summary-badge');
+            if (data.count === 0) {
+                badgeEl.textContent = "ยังไม่มีข้อมูล";
+                badgeEl.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 text-slate-600";
+            } else if (data.overall >= 4.5) {
+                badgeEl.textContent = "🌟 ดีมาก (Very Good)";
+                badgeEl.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300";
+            } else if (data.overall >= 3.5) {
+                badgeEl.textContent = "👍 ดี (Good)";
+                badgeEl.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300";
+            } else {
+                badgeEl.textContent = "⚠️ ควรพัฒนา";
+                badgeEl.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300";
+            }
+
+            // Find Best Domain, Top Item, Low Item
+            if (data.count > 0) {
+                let maxDomIdx = 0;
+                data.domainScores.forEach((s, i) => {
+                    if (s > data.domainScores[maxDomIdx]) maxDomIdx = i;
+                });
+                document.getElementById('teacher-metric-best-domain').textContent = domainNames[maxDomIdx];
+                document.getElementById('teacher-metric-best-domain-score').textContent = `คะแนนเฉลี่ย: ${data.domainScores[maxDomIdx].toFixed(2)} / 5.00`;
+
+                // Sorted Items
+                const sortedItems = data.scores.map((s, idx) => ({
+                    id: idx + 1,
+                    text: questionsList[idx].text,
+                    score: s
+                })).sort((a, b) => b.score - a.score);
+
+                const topItem = sortedItems[0];
+                const lowItem = sortedItems[sortedItems.length - 1];
+
+                document.getElementById('teacher-metric-top-item').textContent = `ข้อ ${topItem.id}: ${topItem.text}`;
+                document.getElementById('teacher-metric-top-score').textContent = `คะแนนเฉลี่ย: ${topItem.score.toFixed(2)}`;
+
+                document.getElementById('teacher-metric-low-item').textContent = `ข้อ ${lowItem.id}: ${lowItem.text}`;
+                document.getElementById('teacher-metric-low-score').textContent = `คะแนนเฉลี่ย: ${lowItem.score.toFixed(2)}`;
+
+                // 2. Dynamic Automated Text Summary based on Graphs
+                document.getElementById('teacher-graph-summary-text').innerHTML = `
+                    จากการประมวลผลผลการประเมินของนักเรียนใน <strong>${semesterFilter}</strong> จำนวน <strong>${data.count}</strong> แบบประเมิน พบว่า <strong>${teacherVal}</strong> ได้รับคะแนนเฉลี่ยรวมอยู่ที่ <strong>${data.overall.toFixed(2)}/5.00 คะแนน</strong> 
+                    โดยมีจุดเด่นสูงสุดอยู่ใน <strong>${domainNames[maxDomIdx]}</strong> (เฉลี่ย ${data.domainScores[maxDomIdx].toFixed(2)} คะแนน) 
+                    เมื่อพิจารณารายข้อ ตัวชี้วัดที่ได้รับคะแนนชื่นชมสูงสุดคือ <strong>ข้อ ${topItem.id} ("${topItem.text}")</strong> ซึ่งได้คะแนนเฉลี่ยสูงถึง <strong>${topItem.score.toFixed(2)} คะแนน</strong> 
+                    สำหรับประเด็นที่สามารถนำไปส่งเสริมและพัฒนาต่อยอดได้เพิ่มเติม คือ <strong>ข้อ ${lowItem.id} ("${lowItem.text}")</strong> คะแนนเฉลี่ยอยู่ที่ <strong>${lowItem.score.toFixed(2)} คะแนน</strong>
+                `;
+            } else {
+                document.getElementById('teacher-metric-best-domain').textContent = "-";
+                document.getElementById('teacher-metric-best-domain-score').textContent = "คะแนนเฉลี่ย: -";
+                document.getElementById('teacher-metric-top-item').textContent = "-";
+                document.getElementById('teacher-metric-top-score').textContent = "คะแนน: -";
+                document.getElementById('teacher-metric-low-item').textContent = "-";
+                document.getElementById('teacher-metric-low-score').textContent = "คะแนน: -";
+
+                document.getElementById('teacher-graph-summary-text').innerHTML = `
+                    ขณะนี้ยังไม่มีข้อมูลการประเมินจากนักเรียนสำหรับ <strong>${teacherVal}</strong> (${semesterFilter}) ในระบบ 
+                    (เมื่อมีการทำแบบประเมินออนไลน์ กราฟและบทสรุปวิเคราะห์เปรียบเทียบในส่วนนี้จะประมวลผลเป็นข้อความเชิงลึกโดยอัตโนมัติทันที)
+                `;
+            }
+
+            // 3. Render Individual Chart 1: Teacher vs School Radar
+            const ctxTeacherRadar = document.getElementById('chart-teacher-domain-radar').getContext('2d');
+            if (teacherRadarInstance) teacherRadarInstance.destroy();
+
+            teacherRadarInstance = new Chart(ctxTeacherRadar, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        ['1. การเตรียมการสอน', 'สื่อ & เนื้อหา'],
+                        ['2. เทคนิคการสอน', '& บรรยากาศ'],
+                        ['3. การดูแล และ', 'การวัดประเมินผล'],
+                        ['4. คุณธรรม จริยธรรม', '& บุคลิกภาพ']
+                    ],
+                    datasets: [
+                        {
+                            label: `คะแนนครู (${teacherVal})`,
+                            data: data.domainScores,
+                            backgroundColor: 'rgba(79, 70, 229, 0.25)',
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 2.5
+                        },
+                        {
+                            label: 'ค่าเฉลี่ยภาพรวมโรงเรียน',
+                            data: schoolDomains,
+                            backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                            borderColor: 'rgba(148, 163, 184, 0.8)',
+                            pointBackgroundColor: 'rgba(148, 163, 184, 1)',
+                            borderDash: [4, 4],
+                            borderWidth: 1.5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 5,
+                            ticks: { stepSize: 1, font: { family: 'Sarabun' } },
+                            pointLabels: { font: { family: 'Sarabun', size: 10, weight: 'bold' } }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'Sarabun', size: 11 } } }
+                    }
+                }
+            });
+
+            // 4. Render Individual Chart 2: Domain Bars
+            const ctxTeacherDomainBars = document.getElementById('chart-teacher-domain-bars').getContext('2d');
+            if (teacherDomainBarInstance) teacherDomainBarInstance.destroy();
+
+            teacherDomainBarInstance = new Chart(ctxTeacherDomainBars, {
+                type: 'bar',
+                data: {
+                    labels: ['ด้านที่ 1 (สื่อ/เนื้อหา)', 'ด้านที่ 2 (เทคนิคการสอน)', 'ด้านที่ 3 (การประเมินผล)', 'ด้านที่ 4 (บุคลิกภาพ)'],
+                    datasets: [{
+                        label: 'คะแนนเฉลี่ยย่อยรายด้าน',
+                        data: data.domainScores,
+                        backgroundColor: ['#4f46e5', '#d97706', '#0d9488', '#9333ea'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 5, ticks: { stepSize: 1, font: { family: 'Sarabun' } } },
+                        x: { ticks: { font: { family: 'Sarabun', size: 10, weight: 'bold' } } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // 5. Render Individual Chart 3: 20 Items Horizontal Bar Chart
+            const ctxBar = document.getElementById('chart-itemized-bars').getContext('2d');
+            const shortLabels = questionsList.map(q => {
+                const text = q.text;
+                return text.length > 18 ? text.substring(0, 18) + '...' : text;
+            });
+
+            if (teacherBarInstance) teacherBarInstance.destroy();
+
+            teacherBarInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: shortLabels,
+                    datasets: [{
+                        label: `คะแนนประเมิน (${teacherVal})`,
+                        data: data.scores,
+                        backgroundColor: data.scores.map(s => s >= 4.5 ? '#4f46e5' : s >= 4.0 ? '#0d9488' : s > 0 ? '#f59e0b' : '#cbd5e1'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { min: 0, max: 5, ticks: { stepSize: 1, font: { family: 'Sarabun' } } },
+                        y: { ticks: { font: { family: 'Sarabun', size: 11 } } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    const index = items[0].dataIndex;
+                                    return `ข้อ ${index + 1}: ${questionsList[index].text}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 6. Render Qualitative Comments Feed
+            const commentsContainer = document.getElementById('comments-feed-container');
+            commentsContainer.innerHTML = '';
+
+            if (data.comments.length === 0) {
+                commentsContainer.innerHTML = `
+                    <div class="md:col-span-2 text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        ยังไม่มีข้อเสนอแนะหรือความคิดเห็นจากนักเรียนสำหรับครูท่านนี้ (${semesterFilter})
+                    </div>`;
+            } else {
+                data.comments.forEach(c => {
+                    const box = document.createElement('div');
+                    const isImpress = c.type === 'impress';
+                    box.className = `p-4 rounded-xl border text-sm ${isImpress ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' : 'bg-amber-50/70 border-amber-200 text-amber-950'}`;
+                    box.innerHTML = `
+                        <div class="font-bold mb-1 flex items-center justify-between text-xs ${isImpress ? 'text-emerald-800' : 'text-amber-800'}">
+                            <span>${isImpress ? '❤️ สิ่งที่ประทับใจ' : '💡 ข้อเสนอแนะเพื่อพัฒนา'}</span>
+                            <span class="text-[10px] font-semibold opacity-75">${c.sem} | ${c.sub}</span>
+                        </div>
+                        <p class="leading-relaxed text-slate-700">"${c.text}"</p>
+                    `;
+                    commentsContainer.appendChild(box);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
